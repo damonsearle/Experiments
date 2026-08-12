@@ -193,6 +193,8 @@ function update(dt) {
   jerry.tail.rotation.y = Math.sin(elapsed * 5) * .1;
   jerry.arms[0].rotation.z = -.5 + Math.sin(run) * .16;
   jerry.arms[1].rotation.z = -.5 + Math.sin(run + Math.PI) * .16;
+  jerry.head.rotation.z = Math.sin(run * 2) * .035;
+  jerry.jaw.rotation.z = -.32 - Math.abs(Math.sin(run)) * .1;
   jerry.propeller.rotation.y += dt * (10 + speed * .8);
   jerry.group.rotation.z = THREE.MathUtils.lerp(jerry.group.rotation.z, jerry.velocity * -.012, .1);
 
@@ -236,6 +238,7 @@ function animate() {
     elapsed += dt;
     jerry.group.position.y = Math.sin(elapsed * 2) * .03;
     jerry.tail.rotation.y = Math.sin(elapsed * 3) * .12;
+    jerry.head.rotation.z = Math.sin(elapsed * 1.6) * .03;
     jerry.propeller.rotation.y += dt * 2.4;
   }
   camera.position.y += (5.4 + jerry.group.position.y * .08 - camera.position.y) * .025;
