@@ -144,7 +144,13 @@ function resetGame() {
 }
 
 function startGame() {
-  resetGame(); state = 'running'; ui.start.classList.add('hidden'); ui.over.classList.add('hidden'); ui.pause.classList.add('hidden'); beep(420, .09); setTimeout(() => beep(650, .12), 90);
+  resetGame();
+  state = 'running';
+  document.body.classList.add('game-started');
+  document.body.classList.remove('game-help-hidden');
+  clearTimeout(startGame.helpTimer);
+  startGame.helpTimer = setTimeout(() => document.body.classList.add('game-help-hidden'), 5000);
+  ui.start.classList.add('hidden'); ui.over.classList.add('hidden'); ui.pause.classList.add('hidden'); beep(420, .09); setTimeout(() => beep(650, .12), 90);
 }
 
 function jump() {

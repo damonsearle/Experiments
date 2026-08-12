@@ -50,14 +50,19 @@ body { background: #07110f; }
 .icon-button { font: inherit; color: inherit; background: none; border: 1px solid var(--line); padding: 9px 12px; cursor: pointer; letter-spacing: .08em; }
 .icon-button:hover { border-color: var(--lime); color: var(--lime); }
 
-.hero-copy { position: fixed; z-index: 4; left: 6.5vw; top: 16vh; pointer-events: none; }
+.hero-copy { position: fixed; z-index: 4; left: 6.5vw; top: 16vh; pointer-events: none; transition: top .45s ease; }
 .eyebrow { margin: 0 0 18px; font-size: 10px; color: var(--lime); letter-spacing: .15em; }
 h1, h2 { font-family: Syne, sans-serif; margin: 0; line-height: .83; letter-spacing: -.065em; }
-h1 { font-size: clamp(48px, 6.2vw, 104px); font-weight: 800; }
+h1 { font-size: clamp(48px, 6.2vw, 104px); font-weight: 800; transition: font-size .45s ease, line-height .45s ease; }
 h1 em { font-style: normal; color: transparent; -webkit-text-stroke: 1.5px var(--lime); }
-.intro { margin: 24px 0 0; font-size: 12px; line-height: 1.7; color: rgba(244,242,233,.62); }
-.controls { margin-top: 26px; display: flex; gap: 22px; font-size: 9px; color: rgba(244,242,233,.5); letter-spacing: .12em; }
+.intro { margin: 24px 0 0; font-size: 12px; line-height: 1.7; color: rgba(244,242,233,.62); transition: opacity .3s ease, transform .3s ease, visibility .3s; }
+.controls { margin-top: 26px; display: flex; gap: 22px; font-size: 9px; color: rgba(244,242,233,.5); letter-spacing: .12em; transition: opacity .3s ease, transform .3s ease, visibility .3s; }
 kbd { font: inherit; color: var(--ink); padding: 5px 9px; background: #f4f2e9; margin-right: 6px; box-shadow: 2px 2px 0 var(--lime); }
+
+.game-started .hero-copy { top: 13vh; }
+.game-started .hero-copy h1 { font-size: clamp(26px, 3vw, 48px); line-height: .9; }
+.game-help-hidden .hero-copy .intro,
+.game-help-hidden .hero-copy .controls { opacity: 0; visibility: hidden; transform: translateY(-7px); }
 
 .hud { position: fixed; z-index: 5; top: 104px; right: 5vw; display: grid; grid-template-columns: auto auto; gap: 22px 40px; }
 .stat { display: flex; flex-direction: column; align-items: flex-end; }
