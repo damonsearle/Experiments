@@ -2,6 +2,8 @@
 
 A Three.js infinite runner where a tiny dinosaur jumps over common data types before the queue overwhelms the system.
 
+Play it at [damonsearle.github.io/Experiments](https://damonsearle.github.io/Experiments/).
+
 ## Run locally
 
 ```bash
