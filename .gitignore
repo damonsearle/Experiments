@@ -403,3 +403,4 @@ FodyWeavers.xsd
 # JavaScript dependencies and generated build output
 node_modules/
 dist/
+GrandTheftData/Jerry.jpeg

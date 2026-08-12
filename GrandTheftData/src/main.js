@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
+import { createJerry } from './jerry.js';
 
 const canvas = document.querySelector('#game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -30,10 +31,7 @@ rim.position.set(5, 2, -5);
 scene.add(rim);
 
 const materials = {
-  dino: new THREE.MeshStandardMaterial({ color: 0xc7ff38, roughness: .68, metalness: .05 }),
-  belly: new THREE.MeshStandardMaterial({ color: 0xefffb8, roughness: .8 }),
-  dark: new THREE.MeshStandardMaterial({ color: 0x07110f, roughness: .9 }),
-  orange: new THREE.MeshStandardMaterial({ color: 0xff5a36, roughness: .58 }),
+  accent: new THREE.MeshStandardMaterial({ color: 0xc7ff38, roughness: .68, metalness: .05 }),
   cream: new THREE.MeshStandardMaterial({ color: 0xf4f2e9, roughness: .72 }),
 };
 
@@ -47,37 +45,7 @@ function mesh(geometry, material, parent, position, rotation = [0, 0, 0]) {
   return part;
 }
 
-function createDino() {
-  const dino = new THREE.Group();
-  const body = mesh(new THREE.SphereGeometry(.72, 10, 8), materials.dino, dino, [0, 1.1, 0]);
-  body.scale.set(1.15, .9, .72);
-  const chest = mesh(new THREE.SphereGeometry(.42, 10, 8), materials.belly, dino, [.28, 1.02, .48]);
-  chest.scale.set(.78, 1.1, .23);
-  const head = mesh(new THREE.BoxGeometry(1.08, .78, .78, 2, 2, 2), materials.dino, dino, [.56, 1.85, 0]);
-  head.rotation.z = -.08;
-  const snout = mesh(new THREE.BoxGeometry(.72, .36, .73), materials.dino, dino, [1.05, 1.7, 0]);
-  const eye = mesh(new THREE.SphereGeometry(.095, 8, 6), materials.dark, dino, [.78, 2.05, .39]);
-  const eyeDot = mesh(new THREE.SphereGeometry(.03, 6, 4), materials.cream, dino, [.81, 2.08, .47]);
-  const tail = mesh(new THREE.ConeGeometry(.43, 2.05, 7), materials.dino, dino, [-1.15, 1.14, 0], [0, 0, Math.PI / 2 + .15]);
-  const arm = mesh(new THREE.CapsuleGeometry(.075, .36, 4, 6), materials.dino, dino, [.62, 1.26, .62], [0, 0, -.9]);
-  const legs = [];
-  for (const z of [-.32, .32]) {
-    const leg = new THREE.Group();
-    leg.position.set(-.18, .55, z);
-    mesh(new THREE.CapsuleGeometry(.13, .5, 4, 6), materials.dino, leg, [0, 0, 0]);
-    mesh(new THREE.BoxGeometry(.48, .16, .25), materials.dino, leg, [.16, -.32, 0]);
-    dino.add(leg);
-    legs.push(leg);
-  }
-  for (let i = 0; i < 3; i++) {
-    mesh(new THREE.ConeGeometry(.12 + i * .025, .35, 4), materials.orange, dino, [-.48 + i * .3, 1.76 + i * .12, 0], [0, 0, -.12]);
-  }
-  dino.position.set(-2.9, 0, 0);
-  scene.add(dino);
-  return { group: dino, legs, tail, arm, eye, baseY: 0, velocity: 0 };
-}
-
-const dino = createDino();
+const jerry = createJerry(scene);
 
 const ground = mesh(new THREE.PlaneGeometry(200, 18), new THREE.MeshStandardMaterial({ color: 0x0b1915, roughness: .95 }), scene, [0, -.02, 0], [-Math.PI / 2, 0, 0]);
 ground.receiveShadow = true;
@@ -90,7 +58,7 @@ scene.add(grid);
 
 const horizonLines = new THREE.Group();
 for (let i = 0; i < 18; i++) {
-  const bar = mesh(new THREE.BoxGeometry(.025, Math.random() * 4 + .5, .025), materials.dino, horizonLines, [Math.random() * 40 - 10, Math.random() * 2, -8 - Math.random() * 10]);
+  const bar = mesh(new THREE.BoxGeometry(.025, Math.random() * 4 + .5, .025), materials.accent, horizonLines, [Math.random() * 40 - 10, Math.random() * 2, -8 - Math.random() * 10]);
   bar.material = bar.material.clone();
   bar.material.transparent = true;
   bar.material.opacity = .12 + Math.random() * .18;
@@ -171,7 +139,7 @@ function beep(frequency, duration, type = 'square', volume = .035) {
 function resetGame() {
   obstacles.forEach(o => scene.remove(o)); obstacles.length = 0;
   score = 0; lives = 3; speed = 5.8; spawnTimer = .8; elapsed = 0;
-  dino.group.position.y = 0; dino.group.rotation.set(0, 0, 0); dino.velocity = 0;
+  jerry.group.position.y = 0; jerry.group.rotation.set(0, 0, 0); jerry.velocity = 0;
   ui.score.textContent = '000000'; renderLives();
 }
 
@@ -181,8 +149,8 @@ function startGame() {
 
 function jump() {
   if (state === 'ready') return startGame();
-  if (state !== 'running' || dino.group.position.y > .04) return;
-  dino.velocity = 8.1; beep(520, .11, 'triangle', .04);
+  if (state !== 'running' || jerry.group.position.y > .04) return;
+  jerry.velocity = 8.1; beep(520, .11, 'triangle', .04);
 }
 
 function togglePause() {
@@ -196,14 +164,14 @@ function showToast(type) {
 }
 
 function collision(obstacle) {
-  const dx = Math.abs(obstacle.position.x - dino.group.position.x);
-  return dx < .75 && dino.group.position.y < obstacle.userData.card.geometry.parameters.height - .05;
+  const dx = Math.abs(obstacle.position.x - jerry.group.position.x);
+  return dx < .75 && jerry.group.position.y < obstacle.userData.card.geometry.parameters.height - .05;
 }
 
 function hit(obstacle) {
   obstacle.userData.hit = true; lives--; renderLives(); beep(115, .28, 'sawtooth', .06);
   obstacle.rotation.z = -.55; obstacle.userData.card.material.emissive.set(0xff2200); obstacle.userData.card.material.emissiveIntensity = 1;
-  dino.group.rotation.z = -.18; setTimeout(() => { if (state !== 'over') dino.group.rotation.z = 0; }, 180);
+  jerry.group.rotation.z = -.18; setTimeout(() => { if (state !== 'over') jerry.group.rotation.z = 0; }, 180);
   if (lives <= 0) {
     state = 'over'; highScore = Math.max(highScore, score); localStorage.setItem('dataDashHighScore', highScore);
     ui.highScore.textContent = String(highScore).padStart(6, '0'); ui.final.textContent = score.toLocaleString(); ui.over.classList.remove('hidden');
@@ -212,12 +180,15 @@ function hit(obstacle) {
 
 function update(dt) {
   elapsed += dt; speed = Math.min(11.5, 5.8 + elapsed * .075);
-  dino.velocity -= 20.5 * dt; dino.group.position.y += dino.velocity * dt;
-  if (dino.group.position.y <= 0) { dino.group.position.y = 0; dino.velocity = 0; }
+  jerry.velocity -= 20.5 * dt; jerry.group.position.y += jerry.velocity * dt;
+  if (jerry.group.position.y <= 0) { jerry.group.position.y = 0; jerry.velocity = 0; }
   const run = elapsed * speed * 1.15;
-  dino.legs[0].rotation.z = Math.sin(run) * .62; dino.legs[1].rotation.z = Math.sin(run + Math.PI) * .62;
-  dino.tail.rotation.y = Math.sin(elapsed * 5) * .1; dino.arm.rotation.z = -.9 + Math.sin(run) * .16;
-  dino.group.rotation.z = THREE.MathUtils.lerp(dino.group.rotation.z, dino.velocity * -.012, .1);
+  jerry.legs[0].rotation.z = Math.sin(run) * .62; jerry.legs[1].rotation.z = Math.sin(run + Math.PI) * .62;
+  jerry.tail.rotation.y = Math.sin(elapsed * 5) * .1;
+  jerry.arms[0].rotation.z = -.5 + Math.sin(run) * .16;
+  jerry.arms[1].rotation.z = -.5 + Math.sin(run + Math.PI) * .16;
+  jerry.propeller.rotation.y += dt * (10 + speed * .8);
+  jerry.group.rotation.z = THREE.MathUtils.lerp(jerry.group.rotation.z, jerry.velocity * -.012, .1);
 
   grid.position.x = (grid.position.x - speed * dt) % (200 / 130);
   dust.forEach(dot => { dot.position.x -= speed * dt * .2; if (dot.position.x < -9) dot.position.x = 22; });
@@ -227,7 +198,7 @@ function update(dt) {
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const o = obstacles[i]; o.position.x -= speed * dt; o.rotation.y = Math.sin(elapsed * 1.5 + i) * .06;
     if (!o.userData.hit && collision(o)) hit(o);
-    if (!o.userData.cleared && o.position.x < dino.group.position.x - .85) {
+    if (!o.userData.cleared && o.position.x < jerry.group.position.x - .85) {
       o.userData.cleared = true;
       if (!o.userData.hit) { score += 100; ui.score.textContent = String(score).padStart(6, '0'); showToast(o.userData.type); beep(760, .07, 'sine', .025); }
     }
@@ -256,9 +227,12 @@ function animate() {
   const dt = Math.min(clock.getDelta(), .04);
   if (state === 'running') update(dt);
   else if (state === 'ready') {
-    elapsed += dt; dino.group.position.y = Math.sin(elapsed * 2) * .03; dino.tail.rotation.y = Math.sin(elapsed * 3) * .12;
+    elapsed += dt;
+    jerry.group.position.y = Math.sin(elapsed * 2) * .03;
+    jerry.tail.rotation.y = Math.sin(elapsed * 3) * .12;
+    jerry.propeller.rotation.y += dt * 2.4;
   }
-  camera.position.y += (5.4 + dino.group.position.y * .08 - camera.position.y) * .025;
+  camera.position.y += (5.4 + jerry.group.position.y * .08 - camera.position.y) * .025;
   renderer.render(scene, camera);
 }
 animate();
