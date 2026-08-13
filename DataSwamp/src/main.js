@@ -3,9 +3,12 @@ import './style.css';
 import { createArena } from './scene/arena.js';
 import { createPlayer } from './game/player.js';
 import { createInput } from './game/input.js';
+import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
+import { createEnemies } from './game/enemies.js';
 
 const canvas = document.querySelector('#game');
 const readout = document.querySelector('#readout');
+const weaponChip = document.querySelector('#weapon');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -20,6 +23,15 @@ const scene = new THREE.Scene();
 const arena = createArena(scene);
 const player = createPlayer(scene);
 const input = createInput(canvas);
+const projectiles = createProjectiles(scene);
+const enemies = createEnemies(scene);
+
+// M1 target practice. M2 replaces these with real species and gives them AI.
+for (const [x, z, hp] of [[9, -9, 120], [-9, -8, 160], [1, -15, 90]]) {
+  enemies.spawn(x, z, { hp });
+}
+
+weaponChip.textContent = player.weapon.name;
 
 /* ---------------------------------------------------------------------- camera */
 
@@ -38,9 +50,12 @@ lookAt.copy(player.group.position);
 
 /* ------------------------------------------------------------------------- aim */
 
-const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+// Aim resolves at the height projectiles actually fly at, not at the ground. Resolving on
+// the ground would put the aim point beyond anything you point at, because the ray carries
+// on past the target and down — enough to miss an enemy you are pointing straight at.
+const aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FLIGHT_Y);
 const raycaster = new THREE.Raycaster();
-const aimPoint = new THREE.Vector3(6, 0, 0);
+const aimPoint = new THREE.Vector3(6, FLIGHT_Y, 0);
 
 // A soft marker where Jerry is pointing. It doubles as the reticle until the HUD exists.
 const reticleMaterial = new THREE.MeshBasicMaterial({
@@ -61,7 +76,7 @@ scene.add(reticle);
 function updateAim() {
   raycaster.setFromCamera(input.pointer, camera);
   // A ray parallel to the ground never lands; keep the previous point when that happens.
-  if (raycaster.ray.intersectPlane(groundPlane, aimPoint)) {
+  if (raycaster.ray.intersectPlane(aimPlane, aimPoint)) {
     reticle.position.set(aimPoint.x, .04, aimPoint.z);
   }
 }
@@ -74,6 +89,24 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
+// Dev-only handle so automated runs can aim at a real target instead of guessing pixels.
+// Stripped from production builds by the bundler.
+if (import.meta.env.DEV) {
+  const probe = new THREE.Vector3();
+  window.__swamp = {
+    player,
+    enemies,
+    projectiles,
+    // Normalised device coords of a living enemy, or null if none are left standing.
+    aimAt(index = 0) {
+      const target = enemies.list.filter(enemy => enemy.alive)[index];
+      if (!target) return null;
+      probe.set(target.x, 1.25, target.z).project(camera);
+      return { x: probe.x, y: probe.y, hp: target.hp, maxHp: target.maxHp };
+    },
+  };
+}
+
 const clock = new THREE.Clock();
 let sinceReadout = 0;
 
@@ -84,6 +117,11 @@ function frame() {
   input.sample();
   updateAim();
   player.update(dt, input, aimPoint, arena);
+  player.shoot(dt, input, projectiles);
+  projectiles.update(dt, enemies.list, (target, shot) => {
+    enemies.damage(target, shot.weapon.damage, shot.x, shot.z);
+  });
+  enemies.update(dt, camera);
 
   // Frame-rate independent easing: the same fraction of the gap closes per second
   // regardless of how often we tick.
@@ -96,10 +134,10 @@ function frame() {
   sinceReadout += dt;
   if (sinceReadout > .15) {
     sinceReadout = 0;
-    const { x, z } = player.group.position;
+    const standing = enemies.list.filter(enemy => enemy.alive).length;
     readout.textContent =
-      `x ${x.toFixed(1).padStart(5)}  z ${z.toFixed(1).padStart(5)}  ` +
-      `spd ${player.speed.toFixed(1)}  ${player.grounded ? 'grounded' : 'airborne'}`;
+      `targets ${standing}  shots ${String(projectiles.live.length).padStart(2)}  ` +
+      `${player.grounded ? 'grounded' : 'airborne'}`;
   }
 
   renderer.render(scene, camera);
