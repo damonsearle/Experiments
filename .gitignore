@@ -404,3 +404,6 @@ FodyWeavers.xsd
 node_modules/
 dist/
 GrandTheftData/Jerry.jpeg
+
+# Pages staging directory assembled by the deploy workflow
+site/

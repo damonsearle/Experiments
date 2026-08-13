@@ -1,10 +1,11 @@
-name: Deploy Data Dash to GitHub Pages
+name: Deploy games to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
       - 'GrandTheftData/**'
+      - 'DataSwamp/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -29,15 +30,36 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: GrandTheftData/package-lock.json
+          cache-dependency-path: |
+            GrandTheftData/package-lock.json
+            DataSwamp/package-lock.json
 
-      - name: Install dependencies
+      - name: Install Data Dash dependencies
         working-directory: GrandTheftData
         run: npm ci
 
-      - name: Build
+      - name: Build Data Dash
         working-directory: GrandTheftData
         run: npm run build
+
+      - name: Install Data Swamp dependencies
+        working-directory: DataSwamp
+        run: npm ci
+
+      - name: Build Data Swamp
+        working-directory: DataSwamp
+        run: npm run build
+
+      # Data Dash keeps the site root; Data Swamp is nested under /swamp/. Its Vite base is
+      # './', so its asset URLs are relative and it does not care which subfolder it lands in.
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp -r GrandTheftData/dist/. site/
+          mkdir -p site/swamp
+          cp -r DataSwamp/dist/. site/swamp/
+          echo "--- site tree ---"
+          find site -maxdepth 2 -not -path '*/assets/*' | sort
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
@@ -45,7 +67,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: GrandTheftData/dist
+          path: site
 
   deploy:
     environment:
