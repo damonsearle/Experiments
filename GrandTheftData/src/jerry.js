@@ -85,9 +85,9 @@ function hideMaps({ base, spot, glow, seed, pebbles = 760 }) {
   }
 
   // Dark freckles scattered between the warts, then fine grain on the bump map alone.
-  for (let i = 0; i < 1700; i++) {
-    const radius = 1 + random() * random() * 3.4;
-    color.fillStyle = rgba(spot, .14 + random() * .34);
+  for (let i = 0; i < 900; i++) {
+    const radius = .8 + random() * 1.9;
+    color.fillStyle = rgba(spot, .1 + random() * .28);
     color.beginPath();
     color.arc(random() * HIDE_SIZE, random() * HIDE_SIZE, radius, 0, Math.PI * 2);
     color.fill();
@@ -142,9 +142,8 @@ function deform(geometry, transform) {
 // Jerry is built from soft blended masses rather than stuck-together primitives. Each part
 // is a unit sphere whose vertices are pushed out along their own direction until they land
 // on the smooth union of a handful of ellipsoids — one continuous, organic surface.
-// Maps a unit direction to the radius at which it meets the smooth union of the ellipsoids.
-// Shared so a patch can be laid exactly onto a surface another mesh already generated.
-function blobSurface(masses, smooth = .13) {
+function blob(masses, { segments = 72, rings, smooth = .13 } = {}) {
+  const geometry = new THREE.SphereGeometry(1, segments, rings ?? Math.round(segments * .62));
   const distances = new Float64Array(masses.length);
   let reach = 0;
   for (const mass of masses) {
@@ -168,7 +167,7 @@ function blobSurface(masses, smooth = .13) {
     return closest - smooth * Math.log(total);
   };
 
-  return direction => {
+  return deform(geometry, direction => {
     let low = 0;
     let high = reach;
     for (let i = 0; i < 26; i++) {
@@ -176,21 +175,8 @@ function blobSurface(masses, smooth = .13) {
       if (field(direction.x * mid, direction.y * mid, direction.z * mid) < 1) low = mid;
       else high = mid;
     }
-    return (low + high) * .5;
-  };
-}
-
-// Pass a partial sphere as `geometry` and a `swell` just over 1 to get a patch that hugs the
-// surface a hair proud of it — a decal that follows every bulge, with no gap and no z-fight.
-function blob(masses, { geometry, segments = 72, rings, smooth = .13, swell = 1 } = {}) {
-  const shape = geometry ?? new THREE.SphereGeometry(1, segments, rings ?? Math.round(segments * .62));
-  const surface = blobSurface(masses, smooth);
-  return deform(shape, direction => direction.multiplyScalar(surface(direction) * swell));
-}
-
-// three's sphere parameterisation, so patches and surface probes agree on where a point is.
-function onSphere(theta, phi, target = new THREE.Vector3()) {
-  return target.set(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
+    direction.multiplyScalar((low + high) * .5);
+  });
 }
 
 // Bakes the belly-to-back gradient of the reference art straight into the mesh.
@@ -216,7 +202,6 @@ function paint(geometry, tone) {
 
 const BACK = new THREE.Color(.68, .61, .50);
 const BELLY = new THREE.Color(1.2, 1.13, .96);
-const LIP = new THREE.Color(1.32, 1.22, 1.04);
 
 // Lighter towards the belly (+x, low), darker over the spine.
 function bellyTone(spread, lift = 0) {
@@ -224,15 +209,6 @@ function bellyTone(spread, lift = 0) {
     const t = THREE.MathUtils.smoothstep(point.x / spread - point.y * .25 + lift, -.85, .85);
     shade.copy(BACK).lerp(BELLY, t);
   };
-}
-
-// The muzzle carries the same gradient plus a pale band along the lip line, the way the
-// reference art lightens the skin right around Jerry's mouth.
-function headTone(shade, point) {
-  const t = THREE.MathUtils.smoothstep(point.x / .6 - point.y * .25 + .35, -.85, .85);
-  shade.copy(BACK).lerp(BELLY, t);
-  const band = 1 - THREE.MathUtils.smoothstep(Math.abs(point.y + .19), .04, .17);
-  shade.lerp(LIP, band * THREE.MathUtils.smoothstep(point.x, .18, .44) * .85);
 }
 
 /* ---------------------------------------------------------------- assembling */
@@ -337,17 +313,14 @@ function badgeTexture() {
 /* ------------------------------------------------------------------ the dino */
 
 export function createJerry(scene) {
-  const hide = hideMaps({ base: '#b8843e', spot: '#4b2a0c', glow: '#e2bd7f', seed: 91, pebbles: 1100 });
+  const hide = hideMaps({ base: '#b8843e', spot: '#573110', glow: '#e2bd7f', seed: 91, pebbles: 1100 });
 
   const materials = {
     body: hideMaterial(hide, [3, 2.2]),
     head: hideMaterial(hide, [2.4, 1.8]),
     limb: hideMaterial(hide, [1.6, 1.2]),
-    // Fully rough and unlit-looking, so the opening never catches a highlight and turns back
-    // into a shiny lump.
-    mouth: new THREE.MeshStandardMaterial({ color: 0x35120f, roughness: 1, metalness: 0, side: THREE.DoubleSide }),
-    tongue: new THREE.MeshStandardMaterial({ color: 0xb9645b, roughness: .34 }),
-    nostril: new THREE.MeshStandardMaterial({ color: 0x2e1c0e, roughness: .86 }),
+    mouth: new THREE.MeshStandardMaterial({ color: 0x50201d, roughness: .55 }),
+    tongue: new THREE.MeshStandardMaterial({ color: 0xa8544c, roughness: .38 }),
     ivory: new THREE.MeshStandardMaterial({ color: 0xf5ecd4, roughness: .42 }),
     sclera: new THREE.MeshStandardMaterial({ color: 0xfdf7e8, roughness: .28 }),
     iris: new THREE.MeshStandardMaterial({ color: 0x3d2413, roughness: .3 }),
@@ -360,12 +333,12 @@ export function createJerry(scene) {
     strap: new THREE.MeshStandardMaterial({ color: 0x2c5b80, roughness: .82 }),
     steel: new THREE.MeshStandardMaterial({ color: 0x8d9299, roughness: .34, metalness: .8 }),
     lens: new THREE.MeshPhysicalMaterial({
-      color: 0xe8f6f2,
-      roughness: .05,
+      color: 0xd6f0ea,
+      roughness: .07,
       metalness: 0,
       transparent: true,
-      opacity: .1,
-      transmission: .75,
+      opacity: .16,
+      transmission: .55,
       depthWrite: false,
     }),
   };
@@ -393,95 +366,94 @@ export function createJerry(scene) {
   head.scale.setScalar(1.09);
   jerry.add(head);
 
-  // One continuous face, jaw included — in the reference art Jerry has no separate hanging
-  // jaw, just a mouth cut into a solid muzzle.
-  const headMasses = [
+  addMesh(head, paint(blob([
     { at: [-.06, .04, 0], size: [.55, .54, .55] },    // cranium
-    { at: [.26, .19, -.28], size: [.22, .22, .22] },  // mounds the eyeballs sit in
-    { at: [.26, .19, .28], size: [.22, .22, .22] },
+    { at: [.26, .22, -.30], size: [.22, .22, .22] },  // mounds the eyeballs sit in
+    { at: [.26, .22, .30], size: [.22, .22, .22] },
     { at: [.12, -.16, -.32], size: [.30, .28, .24] }, // cheeks
     { at: [.12, -.16, .32], size: [.30, .28, .24] },
-    { at: [.4, .02, 0], size: [.37, .25, .39] },      // muzzle
-    { at: [.56, .02, 0], size: [.29, .23, .33] },     // blunt, rounded snout
-    { at: [.44, -.26, 0], size: [.34, .19, .34] },    // jaw and chin
+    { at: [.42, -.01, 0], size: [.40, .26, .40] },    // muzzle
+    { at: [.58, -.03, 0], size: [.30, .23, .34] },    // snout tip
+    { at: [.42, -.15, 0], size: [.38, .13, .37] },    // upper lip
     { at: [-.14, -.30, 0], size: [.34, .26, .33] },   // throat into the collar
-  ];
-  const HEAD_SMOOTH = .15;
-  addMesh(head, paint(blob(headMasses, { segments: 96, rings: 60, smooth: HEAD_SMOOTH }), headTone), materials.head);
-  const headSurface = blobSurface(headMasses, HEAD_SMOOTH);
+  ], { segments: 96, rings: 60, smooth: .15 }), bellyTone(.6, .35)), materials.head);
 
-  // Nostrils: dark slanted ovals set into the front of the snout, as in the mugshots.
+  // Nostrils sunk into the top of the snout.
   for (const z of [-.11, .11]) {
-    addMesh(head, new THREE.SphereGeometry(1, 14, 10), materials.nostril, [.85, .09, z], [0, 0, -.55], [.055, .066, .038]);
+    addMesh(head, new THREE.SphereGeometry(.048, 10, 8), materials.dark, [.72, .13, z], [0, 0, -.4], [1, .7, .8]);
   }
 
   /* -- open, toothy grin ---------------------------------------------------- */
-  // The mouth is a patch laid onto the muzzle's own surface rather than a blob parked in
-  // front of it: it follows every bulge, sits a hair proud, and so reads as an opening.
-  const MOUTH_THETA = 2.06;
-  const MOUTH_HALF = .19;
-  const MOUTH_PHI = .58;
-  const mouth = new THREE.Group();
-  head.add(mouth);
-  addMesh(mouth, blob(headMasses, {
-    geometry: new THREE.SphereGeometry(1, 44, 26, Math.PI - MOUTH_PHI, MOUTH_PHI * 2, MOUTH_THETA - MOUTH_HALF, MOUTH_HALF * 2),
-    smooth: HEAD_SMOOTH,
-    swell: 1.004,
-  }), materials.mouth);
+  addMesh(head, new THREE.SphereGeometry(1, 20, 14), materials.mouth, [.32, -.38, 0], [0, 0, .08], [.42, .19, .4]);
+  addMesh(head, new THREE.SphereGeometry(1, 18, 12), materials.tongue, [.42, -.44, 0], [0, 0, .14], [.26, .08, .23]);
 
-  // Tongue: the same trick again, a smaller patch riding just proud of the mouth.
-  addMesh(mouth, blob(headMasses, {
-    geometry: new THREE.SphereGeometry(1, 30, 16, Math.PI - .36, .72, MOUTH_THETA + .01, .16),
-    smooth: HEAD_SMOOTH,
-    swell: 1.045,
-  }), materials.tongue);
+  // Upper teeth follow the lip line; the corners sit higher, which is what makes it a smile.
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 8 - .5) * 2.3;
+    addMesh(
+      head,
+      new THREE.ConeGeometry(.036 - Math.abs(angle) * .007, .1, 6),
+      materials.ivory,
+      [.42 + Math.cos(angle) * .33, -.26 + Math.abs(angle) * .055, Math.sin(angle) * .37],
+      [0, 0, Math.PI],
+    );
+  }
 
-  // Teeth stand on the rim of the patch, aimed across the opening at its centre.
-  const rim = new THREE.Vector3();
-  const mouthCentre = onSphere(MOUTH_THETA, Math.PI).multiplyScalar(headSurface(onSphere(MOUTH_THETA, Math.PI)));
-  const toothAim = new THREE.Vector3();
-  for (const [count, edge, radius, length] of [[7, -1, .022, .055], [5, 1, .016, .038]]) {
-    for (let i = 0; i < count; i++) {
-      const phi = Math.PI + (i / (count - 1) - .5) * MOUTH_PHI * (edge < 0 ? 1.7 : 1.15);
-      onSphere(MOUTH_THETA + edge * MOUTH_HALF * .92, phi, rim);
-      rim.multiplyScalar(headSurface(rim) * 1.005);
-      toothAim.copy(mouthCentre).sub(rim);
-      claw(mouth, materials.ivory, rim.toArray(), toothAim.toArray(), radius, length);
-    }
+  // Lower jaw, hinged under the cheeks so the grin can flap while Jerry runs.
+  const jaw = new THREE.Group();
+  jaw.position.set(.12, -.22, 0);
+  jaw.rotation.z = -.32;
+  head.add(jaw);
+  addMesh(jaw, paint(blob([
+    { at: [.36, -.1, 0], size: [.3, .13, .29] },
+    { at: [.53, -.1, 0], size: [.2, .11, .21] },
+    { at: [.13, -.12, -.24], size: [.18, .12, .16] },
+    { at: [.13, -.12, .24], size: [.18, .12, .16] },
+  ], { segments: 48, rings: 30, smooth: .14 }), (shade, point) => {
+    shade.copy(BACK).lerp(BELLY, THREE.MathUtils.smoothstep(-point.y * 2.4 + .3, -.8, .8));
+  }), materials.limb);
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 4 - .5) * 1.6;
+    addMesh(
+      jaw,
+      new THREE.ConeGeometry(.026, .07, 6),
+      materials.ivory,
+      [.4 + Math.cos(angle) * .22, .01, Math.sin(angle) * .24],
+    );
   }
 
   /* -- big bulging eyes behind chunky round glasses ------------------------- */
   const eyes = [];
-  for (const z of [-.28, .28]) {
+  for (const z of [-.30, .30]) {
     const side = Math.sign(z);
     const socket = new THREE.Group();
-    socket.position.set(.4, .22, z);
-    socket.rotation.y = -side * .12;
+    socket.position.set(.40, .26, z);
+    socket.rotation.y = -side * .2;
     head.add(socket);
 
     const eye = addMesh(socket, new THREE.SphereGeometry(.22, 26, 20), materials.sclera);
 
     // Iris, pupil and catchlight are shells of the eyeball, so they can never sink into it.
     const gaze = new THREE.Group();
-    gaze.rotation.set(0, side * .05, -.03);
+    gaze.rotation.set(0, side * .06, -.09);
     socket.add(gaze);
     addMesh(gaze, eyeCap(.222, .8), materials.iris);
     const pupil = addMesh(gaze, eyeCap(.226, .42), materials.pupil);
     addMesh(gaze, eyeCap(.231, .17), materials.spark, [0, 0, 0], [.9, 0, -.55]);
     eyes.push({ eye, pupil });
 
-    // Glasses: slim round wire rims, a near-clear lens, and a stem back over the cheek.
-    addMesh(socket, new THREE.TorusGeometry(.215, .021, 10, 40), materials.frame, [.18, -.01, 0], [0, Math.PI / 2, 0], [1, .97, 1]);
-    addMesh(socket, new THREE.CircleGeometry(.21, 32), materials.lens, [.225, -.01, 0], [0, Math.PI / 2, 0]);
-    strut(socket, materials.frame, [.14, .02, side * .21], [-.22, -.04, side * .3], .018);
+    // Glasses: a thick rim ringing the eyeball, a faint lens, and a stem over the cheek.
+    addMesh(socket, new THREE.TorusGeometry(.235, .042, 10, 32), materials.frame, [.2, -.01, 0], [0, Math.PI / 2, 0], [1, .96, 1]);
+    addMesh(socket, new THREE.CircleGeometry(.225, 28), materials.lens, [.252, -.01, 0], [0, Math.PI / 2, 0]);
+    strut(socket, materials.frame, [.13, .06, side * .22], [-.36, .12, side * .32], .026);
   }
-  // Bridge: a small arc hopping over the snout between the two rims.
-  addMesh(head, new THREE.TorusGeometry(.09, .02, 8, 20, Math.PI), materials.frame, [.62, .13, 0], [0, Math.PI / 2, 0]);
+  // Bridge between the two rims, sitting on the snout.
+  strut(head, materials.frame, [.58, .29, -.14], [.58, .29, .14], .038);
 
   /* -- propeller beanie ----------------------------------------------------- */
   const cap = new THREE.Group();
-  cap.position.set(-.04, .35, 0);
-  cap.rotation.set(.08, 0, .19);
+  cap.position.set(-.04, .27, 0);
+  cap.rotation.set(.08, 0, .17);
   head.add(cap);
 
   for (let i = 0; i < 6; i++) {
@@ -491,35 +463,35 @@ export function createJerry(scene) {
       i % 2 ? materials.capCream : materials.capRed,
       [0, 0, 0],
       [0, 0, 0],
-      [.52, .44, .53],
+      [.63, .53, .64],
     );
   }
-  addMesh(cap, new THREE.TorusGeometry(.512, .05, 10, 32), materials.capRed, [0, .02, 0], [Math.PI / 2, 0, 0], [1.01, 1.01, 1]);
-  // Short brim over the brow: a torus arc swung round to +x and flattened into a peak, so it
-  // stays closed geometry rather than a cylinder sector with open sides.
-  const brimArc = 1.5;
-  const brim = new THREE.TorusGeometry(.46, .11, 8, 26, brimArc);
-  brim.rotateZ(-brimArc / 2);
-  brim.rotateX(-Math.PI / 2);
-  brim.scale(1, .3, 1);
-  addMesh(cap, brim, materials.capRed, [0, .03, 0], [0, 0, .1]);
-  addMesh(cap, new THREE.SphereGeometry(.068, 12, 10), materials.capRed, [0, .44, 0]);
-  addMesh(cap, new THREE.CylinderGeometry(.02, .024, .14, 10), materials.steel, [0, .52, 0]);
+  addMesh(cap, new THREE.TorusGeometry(.62, .06, 10, 32), materials.capRed, [0, .02, 0], [Math.PI / 2, 0, 0], [1.01, 1.01, 1]);
+  // Short brim over the brow. Cylinder theta starts at +z, so the sector is swung round to +x.
+  addMesh(
+    cap,
+    new THREE.CylinderGeometry(.82, .82, .055, 28, 1, false, Math.PI / 2 - .46, .92),
+    materials.capRed,
+    [0, .12, 0],
+    [0, 0, .1],
+  );
+  addMesh(cap, new THREE.SphereGeometry(.08, 12, 10), materials.capRed, [0, .53, 0]);
+  addMesh(cap, new THREE.CylinderGeometry(.022, .026, .16, 10), materials.steel, [0, .62, 0]);
 
   const propeller = new THREE.Group();
-  propeller.position.set(0, .61, 0);
+  propeller.position.set(0, .72, 0);
   cap.add(propeller);
-  addMesh(propeller, new THREE.SphereGeometry(.052, 12, 10), materials.frame);
+  addMesh(propeller, new THREE.SphereGeometry(.06, 12, 10), materials.frame);
   for (const side of [-1, 1]) {
-    addMesh(propeller, new THREE.BoxGeometry(.32, .026, .12), materials.strap, [side * .18, 0, 0], [side * .38, 0, 0]);
+    addMesh(propeller, new THREE.BoxGeometry(.38, .028, .14), materials.strap, [side * .21, 0, 0], [side * .38, 0, 0]);
   }
 
   /* -- lanyard and the backup-engineer badge -------------------------------- */
   // Straps ride over the shoulders and meet at the clip, the way the reference badge hangs.
   // The straps run wide of the chin, down the sides of the chest, and meet at the clip.
   for (const side of [-1, 1]) {
-    strut(jerry, materials.strap, [.06, 1.94, side * .48], [.46, 1.68, side * .38], .034);
-    strut(jerry, materials.strap, [.46, 1.68, side * .38], [.76, 1.52, side * .06], .034);
+    strut(jerry, materials.strap, [.06, 1.94, side * .48], [.46, 1.68, side * .38], .048);
+    strut(jerry, materials.strap, [.46, 1.68, side * .38], [.76, 1.52, side * .06], .048);
   }
   addMesh(jerry, new THREE.BoxGeometry(.06, .13, .09), materials.steel, [.79, 1.48, 0]);
   addMesh(
@@ -616,5 +588,5 @@ export function createJerry(scene) {
 
   jerry.position.set(-2.9, 0, 0);
   scene.add(jerry);
-  return { group: jerry, torso, head, mouth, legs, tail, arms, eyes, propeller, velocity: 0 };
+  return { group: jerry, torso, head, jaw, legs, tail, arms, eyes, propeller, velocity: 0 };
 }

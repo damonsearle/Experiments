@@ -199,6 +199,7 @@ function update(dt) {
   jerry.arms[0].rotation.z = -.5 + Math.sin(run) * .16;
   jerry.arms[1].rotation.z = -.5 + Math.sin(run + Math.PI) * .16;
   jerry.head.rotation.z = Math.sin(run * 2) * .035;
+  jerry.jaw.rotation.z = -.32 - Math.abs(Math.sin(run)) * .1;
   jerry.propeller.rotation.y += dt * (10 + speed * .8);
   jerry.group.rotation.z = THREE.MathUtils.lerp(jerry.group.rotation.z, jerry.velocity * -.012, .1);
 
