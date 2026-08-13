@@ -17,8 +17,13 @@ scene.background = new THREE.Color(0x07110f);
 scene.fog = new THREE.FogExp2(0x07110f, 0.038);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 120);
-camera.position.set(10.5, 5.4, 13.5);
-camera.lookAt(0, 1.4, 0);
+
+// Two framings: a close one for the idle turntable, and the wide gameplay shot. The camera
+// eases between them, so starting a run reads as pulling back rather than a cut.
+// Aimed above Jerry so he sits low in frame, clear of the headline and the start panel.
+const inspectPose = { position: new THREE.Vector3(2, 3, 6.2), target: new THREE.Vector3(-2.1, 2.35, -.6) };
+const runPose = { position: new THREE.Vector3(10.5, 5.4, 13.5), target: new THREE.Vector3(0, 1.4, 0) };
+const pose = { position: inspectPose.position.clone(), target: inspectPose.target.clone() };
 
 scene.add(new THREE.HemisphereLight(0xbfffc5, 0x07110f, 1.6));
 const keyLight = new THREE.DirectionalLight(0xc7ff38, 4.5);
@@ -194,7 +199,6 @@ function update(dt) {
   jerry.arms[0].rotation.z = -.5 + Math.sin(run) * .16;
   jerry.arms[1].rotation.z = -.5 + Math.sin(run + Math.PI) * .16;
   jerry.head.rotation.z = Math.sin(run * 2) * .035;
-  jerry.jaw.rotation.z = -.32 - Math.abs(Math.sin(run)) * .1;
   jerry.propeller.rotation.y += dt * (10 + speed * .8);
   jerry.group.rotation.z = THREE.MathUtils.lerp(jerry.group.rotation.z, jerry.velocity * -.012, .1);
 
@@ -223,11 +227,18 @@ window.addEventListener('keydown', e => {
 });
 canvas.addEventListener('pointerdown', jump);
 
-window.addEventListener('resize', () => {
+function frameCamera() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
-  if (innerWidth < 760) { camera.position.set(10.5, 5.2, 17.5); } else { camera.position.set(10.5, 5.4, 13.5); }
-  camera.lookAt(0, 1.4, 0);
-});
+  const narrow = innerWidth < 760;
+  runPose.position.set(10.5, narrow ? 5.2 : 5.4, narrow ? 17.5 : 13.5);
+  // On a narrow screen the panels crowd the middle, so hold the turntable a little further off.
+  // Wide: Jerry sits low, under the headline and left of the start panel. Narrow: the panel
+  // eats the lower half, so hold further back and aim lower to lift him clear of it.
+  inspectPose.position.set(narrow ? 5.15 : 2, narrow ? 2.1 : 3, narrow ? 15.2 : 6.2);
+  inspectPose.target.set(-2.1, narrow ? 1.98 : 2.35, -.6);
+}
+frameCamera();
+window.addEventListener('resize', frameCamera);
 
 const clock = new THREE.Clock();
 function animate() {
@@ -235,13 +246,21 @@ function animate() {
   const dt = Math.min(clock.getDelta(), .04);
   if (state === 'running') update(dt);
   else if (state === 'ready') {
+    // Idle turntable, so Jerry can be looked over from every side before the run begins.
     elapsed += dt;
     jerry.group.position.y = Math.sin(elapsed * 2) * .03;
+    jerry.group.rotation.y += dt * .45;
     jerry.tail.rotation.y = Math.sin(elapsed * 3) * .12;
     jerry.head.rotation.z = Math.sin(elapsed * 1.6) * .03;
     jerry.propeller.rotation.y += dt * 2.4;
   }
-  camera.position.y += (5.4 + jerry.group.position.y * .08 - camera.position.y) * .025;
+  const wanted = state === 'ready' ? inspectPose : runPose;
+  const ease = 1 - Math.pow(.05, dt);
+  pose.position.lerp(wanted.position, ease);
+  pose.target.lerp(wanted.target, ease);
+  camera.position.copy(pose.position);
+  camera.position.y += jerry.group.position.y * .08;
+  camera.lookAt(pose.target);
   renderer.render(scene, camera);
 }
 animate();
