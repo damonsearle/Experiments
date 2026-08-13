@@ -31,7 +31,7 @@ const HIDE_SIZE = 512;
 
 // Jerry's skin in the reference art is a warty, pebbled hide: hundreds of little raised
 // bumps over a blotchy tan. One pass paints them, the same pass embosses a bump map.
-function hideMaps({ base, spot, glow, seed, pebbles = 760 }) {
+function hideMaps({ base, spot, glow, seed, pebbles = 760, wart = 1 }) {
   const colorCanvas = document.createElement('canvas');
   const bumpCanvas = document.createElement('canvas');
   colorCanvas.width = colorCanvas.height = bumpCanvas.width = bumpCanvas.height = HIDE_SIZE;
@@ -60,8 +60,8 @@ function hideMaps({ base, spot, glow, seed, pebbles = 760 }) {
 
   // The warts themselves: a lit crown with a darker rim, embossed to match.
   for (let i = 0; i < pebbles; i++) {
-    const radius = 1.4 + random() * random() * 5.4;
-    const strength = .22 + random() * .44;
+    const radius = (1.5 + random() * random() * 6.6) * wart;
+    const strength = .24 + random() * .46;
     tiled(HIDE_SIZE, random() * HIDE_SIZE, random() * HIDE_SIZE, radius + 2, (x, y) => {
       const shell = color.createRadialGradient(x - radius * .32, y - radius * .32, 0, x, y, radius * 1.05);
       shell.addColorStop(0, rgba(glow, strength * .55));
