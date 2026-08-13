@@ -1,0 +1,112 @@
+/* Grubby and organic: mud, bone, tannin, amber. Saturation is reserved for the
+   file-type projectiles and tier-coloured pickups, so the chrome stays muted. */
+
+:root {
+  --mud: #0e1512;
+  --bone: #ded6bf;
+  --bone-dim: #9aa08c;
+  --amber: #d2a63f;
+  --rule: rgba(222, 214, 191, .16);
+  --panel: rgba(14, 21, 18, .72);
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--mud);
+  color: var(--bone);
+  font-family: var(--mono);
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.chrome {
+  position: fixed;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem clamp(.9rem, 3vw, 1.8rem);
+  pointer-events: none;
+  user-select: none;
+}
+
+.top {
+  top: 0;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(var(--panel), transparent);
+}
+
+.bottom {
+  bottom: 0;
+  border-top: 1px solid var(--rule);
+  background: linear-gradient(transparent, var(--panel));
+}
+
+.mark {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  letter-spacing: .01em;
+}
+
+.mark em {
+  font-style: italic;
+  color: var(--amber);
+}
+
+.stage,
+.readout {
+  margin: 0;
+  font-size: .68rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem 1.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+
+.keys li {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+kbd,
+.mouse {
+  font: inherit;
+  letter-spacing: .06em;
+  color: var(--bone);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: .12em .38em;
+  background: rgba(222, 214, 191, .05);
+}
+
+@media (max-width: 34rem) {
+  .stage { display: none; }
+}
