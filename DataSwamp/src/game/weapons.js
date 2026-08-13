@@ -15,6 +15,18 @@ export const WEAPONS = [
 
 export const WEAPON_BY_ID = new Map(WEAPONS.map(weapon => [weapon.id, weapon]));
 
+// What the wildlife throws back. The other half of the joke: the bigger the
+// dinosaur, the more complicated the format, the more it hurts. These are the
+// only saturated things on screen besides the pickups, so they read against the
+// swamp's mossy greens no matter how busy the arena gets.
+export const FORMATS = [
+  { id: 'txt', name: '.TXT', damage: 4, speed: 14, range: 26, tint: 0xe8e2d0, arc: .35 },
+  { id: 'csv', name: '.CSV', damage: 8, speed: 16, range: 26, tint: 0xe0912f, arc: .4 },
+  { id: 'xls', name: '.XLS', damage: 14, speed: 12, range: 30, tint: 0x46b06e, arc: 1.5 },
+];
+
+export const FORMAT_BY_ID = new Map(FORMATS.map(format => [format.id, format]));
+
 // Shared geometry and materials — a projectile mesh is cloned from a prototype, never rebuilt.
 const shell = new THREE.BoxGeometry(.42, .05, .42);
 const shutter = new THREE.BoxGeometry(.17, .022, .13);
@@ -52,11 +64,42 @@ function buildGeneric(weapon) {
   return holder;
 }
 
-const prototypes = new Map();
+// Incoming formats are sheets of paper with a coloured header band. They are
+// emissive as well as lit, because a shot flying out of the fog at Jerry has to
+// be readable before it is close enough for the key light to reach it.
+const sheet = new THREE.BoxGeometry(.34, .022, .26);
+const band = new THREE.BoxGeometry(.34, .006, .07);
 
-export function projectileMesh(weapon) {
-  if (!prototypes.has(weapon.id)) {
-    prototypes.set(weapon.id, weapon.id === 'floppy' ? buildFloppy() : buildGeneric(weapon));
+function buildPage(format) {
+  const page = new THREE.Group();
+  const paperMesh = new THREE.Mesh(sheet, new THREE.MeshStandardMaterial({
+    color: 0xf0ead8,
+    roughness: .85,
+    emissive: new THREE.Color(format.tint).multiplyScalar(.25),
+  }));
+  paperMesh.castShadow = true;
+  page.add(paperMesh);
+
+  const header = new THREE.Mesh(band, new THREE.MeshStandardMaterial({
+    color: format.tint,
+    roughness: .5,
+    emissive: new THREE.Color(format.tint).multiplyScalar(.6),
+  }));
+  header.position.set(0, .016, -.088);
+  page.add(header);
+  return page;
+}
+
+const prototypes = new Map();
+const pageIds = new Set(FORMATS.map(format => format.id));
+
+export function projectileMesh(spec) {
+  if (!prototypes.has(spec.id)) {
+    let prototype;
+    if (pageIds.has(spec.id)) prototype = buildPage(spec);
+    else if (spec.id === 'floppy') prototype = buildFloppy();
+    else prototype = buildGeneric(spec);
+    prototypes.set(spec.id, prototype);
   }
-  return prototypes.get(weapon.id).clone();
+  return prototypes.get(spec.id).clone();
 }

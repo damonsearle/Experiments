@@ -124,6 +124,100 @@ kbd,
   background: rgba(222, 214, 191, .05);
 }
 
+.note {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: rgba(222, 214, 191, .38);
+  letter-spacing: .08em;
+}
+
+/* ---------------------------------------------------------------- integrity */
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-left: auto;
+}
+
+.health-label {
+  font-size: .62rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+
+.health-track {
+  display: block;
+  width: clamp(6rem, 14vw, 11rem);
+  height: .42rem;
+  border: 1px solid var(--rule);
+  background: rgba(14, 21, 18, .8);
+  overflow: hidden;
+}
+
+.health-fill {
+  display: block;
+  height: 100%;
+  /* Scaled rather than resized, so the bar animates on the compositor and the
+     game loop never touches layout. */
+  transform-origin: left center;
+  transform: scaleX(1);
+  background: linear-gradient(90deg, #8d3a2c, var(--amber));
+  transition: transform .12s linear;
+}
+
+/* -------------------------------------------------------------- damage + end */
+
+#hurt {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 38%, rgba(150, 38, 26, .68) 100%);
+}
+
+#over {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: rgba(14, 21, 18, .58);
+  transition: opacity .5s ease;
+}
+
+#over.shown {
+  opacity: 1;
+  visibility: visible;
+}
+
+.verdict {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: clamp(2rem, 8vw, 3.6rem);
+  font-style: italic;
+  letter-spacing: .02em;
+  color: #c9634a;
+}
+
+.hint {
+  margin: 0;
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+
 @media (max-width: 34rem) {
-  .stage { display: none; }
+  .stage,
+  .health-label,
+  .note { display: none; }
 }

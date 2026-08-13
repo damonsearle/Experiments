@@ -5,10 +5,14 @@ import { createPlayer } from './game/player.js';
 import { createInput } from './game/input.js';
 import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
+import { createDinoKit } from './creature/dinos.js';
 
 const canvas = document.querySelector('#game');
 const readout = document.querySelector('#readout');
 const weaponChip = document.querySelector('#weapon');
+const healthFill = document.querySelector('#health-fill');
+const hurtVeil = document.querySelector('#hurt');
+const overPanel = document.querySelector('#over');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -24,12 +28,24 @@ const arena = createArena(scene);
 const player = createPlayer(scene);
 const input = createInput(canvas);
 const projectiles = createProjectiles(scene);
-const enemies = createEnemies(scene);
 
-// M1 target practice. M2 replaces these with real species and gives them AI.
-for (const [x, z, hp] of [[9, -9, 120], [-9, -8, 160], [1, -15, 90]]) {
-  enemies.spawn(x, z, { hp });
+// Every blob() in the game runs here, once. Spawning must never touch it.
+const dinoKit = createDinoKit();
+const enemies = createEnemies(scene, dinoKit);
+
+// A fixed encounter until the wave director arrives at M5. The mix is chosen to
+// show all three behaviours at once: compies rush, dilos hold the middle, the
+// stego stands off and lobs.
+const ENCOUNTER = [
+  ['compy', 7, -8], ['compy', 10, -5], ['compy', 4, -12],
+  ['dilo', -9, -7], ['dilo', 12, 4],
+  ['stego', -3, -15],
+];
+
+function populate() {
+  for (const [species, x, z] of ENCOUNTER) enemies.spawn(species, x, z);
 }
+populate();
 
 weaponChip.textContent = player.weapon.name;
 
@@ -107,8 +123,49 @@ if (import.meta.env.DEV) {
   };
 }
 
-const clock = new THREE.Clock();
+/* ------------------------------------------------------------------------ hud */
+
 let sinceReadout = 0;
+let veil = 0;
+
+function updateHud(dt) {
+  // The hurt flash is raised by player.hurt() and drained here, so the damage
+  // rule stays in the player and the presentation stays in main.
+  if (player.hurtFlash > 0) {
+    veil = 1;
+    player.hurtFlash = 0;
+  }
+  veil = Math.max(0, veil - dt * 3.2);
+  hurtVeil.style.opacity = veil.toFixed(3);
+
+  overPanel.classList.toggle('shown', !player.alive);
+  reticle.visible = player.alive;
+
+  sinceReadout += dt;
+  if (sinceReadout < .12) return;
+  sinceReadout = 0;
+
+  healthFill.style.transform = `scaleX(${(player.hp / player.maxHp).toFixed(3)})`;
+  const standing = enemies.list.filter(enemy => enemy.alive).length;
+  readout.textContent =
+    `hp ${String(Math.ceil(player.hp)).padStart(3)}  targets ${standing}  ` +
+    `shots ${String(projectiles.live.length).padStart(2)}  ` +
+    `${player.grounded ? 'grounded' : 'airborne'}`;
+}
+
+addEventListener('keydown', event => {
+  if (event.code !== 'KeyR' || player.alive) return;
+  player.reset();
+  enemies.clear();
+  projectiles.clear();
+  populate();
+  camera.position.copy(player.group.position).add(CAMERA_OFFSET);
+  lookAt.copy(player.group.position);
+});
+
+/* ------------------------------------------------------------------------ loop */
+
+const clock = new THREE.Clock();
 
 function frame() {
   requestAnimationFrame(frame);
@@ -118,10 +175,18 @@ function frame() {
   updateAim();
   player.update(dt, input, aimPoint, arena);
   player.shoot(dt, input, projectiles);
-  projectiles.update(dt, enemies.list, (target, shot) => {
-    enemies.damage(target, shot.weapon.damage, shot.x, shot.z);
+  projectiles.update(dt, {
+    hostiles: enemies.list,
+    player,
+    onHostileHit(target, shot) {
+      enemies.damage(target, shot.spec.damage, shot.x, shot.z);
+    },
+    onPlayerHit(shot) {
+      player.hurt(shot.spec.damage);
+    },
   });
-  enemies.update(dt, camera);
+  enemies.update(dt, camera, player, arena, projectiles);
+  updateHud(dt);
 
   // Frame-rate independent easing: the same fraction of the gap closes per second
   // regardless of how often we tick.
@@ -130,15 +195,6 @@ function frame() {
   camera.position.lerp(cameraGoal, ease);
   lookAt.lerp(player.group.position, ease);
   camera.lookAt(lookAt.x, lookAt.y + LOOK_LIFT, lookAt.z);
-
-  sinceReadout += dt;
-  if (sinceReadout > .15) {
-    sinceReadout = 0;
-    const standing = enemies.list.filter(enemy => enemy.alive).length;
-    readout.textContent =
-      `targets ${standing}  shots ${String(projectiles.live.length).padStart(2)}  ` +
-      `${player.grounded ? 'grounded' : 'airborne'}`;
-  }
 
   renderer.render(scene, camera);
 }

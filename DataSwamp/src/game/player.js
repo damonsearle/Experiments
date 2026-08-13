@@ -9,6 +9,12 @@ const GRAVITY = 26;
 const JUMP = 9.4;
 const RADIUS = .85;
 
+const MAX_HP = 100;
+// Long enough to get out of a Compsognathus swarm's crossfire, short enough
+// that standing in it is still fatal.
+const MERCY = .7;
+const BLINK = 14;   // blinks per second while the mercy window is open
+
 export function createPlayer(scene) {
   const rig = createJerry();
   const group = rig.group;
@@ -23,6 +29,8 @@ export function createPlayer(scene) {
     rig,
     group,
     radius: RADIUS,
+    x: 0,             // mirrors group.position, so projectiles can treat Jerry
+    z: 0,             // as just another circle on the XZ plane
     lift: 0,          // height above the ground
     liftVelocity: 0,
     grounded: true,
@@ -31,6 +39,12 @@ export function createPlayer(scene) {
     weapon: WEAPONS[0],
     cooldown: 0,
     recoil: 0,
+    hp: MAX_HP,
+    maxHp: MAX_HP,
+    alive: true,
+    mercy: 0,         // invulnerability left over from the last hit
+    hurtFlash: 0,     // drives the screen flash; main.js reads and clears it
+    dying: 0,
   };
 
   // Jerry's model faces +x, so a heading of 0 already points down the positive x axis.
@@ -48,10 +62,36 @@ export function createPlayer(scene) {
 
   // Shots leave along the true aim rather than the lagged body rotation, so firing lands
   // where the cursor is even mid-turn.
+  // Ignored while the mercy window is open, so a Compsognathus pack cannot chain
+  // three .TXT hits into an unreactable death.
+  player.hurt = amount => {
+    if (!player.alive || player.mercy > 0) return false;
+    player.hp = Math.max(0, player.hp - amount);
+    player.mercy = MERCY;
+    player.hurtFlash = 1;
+    if (player.hp === 0) {
+      player.alive = false;
+      player.dying = .0001;
+    }
+    return true;
+  };
+
+  player.reset = () => {
+    group.position.set(0, 0, 0);
+    group.rotation.set(0, 0, 0);
+    group.visible = true;
+    velocity.set(0, 0, 0);
+    facing.set(1, 0, 0);
+    Object.assign(player, {
+      x: 0, z: 0, lift: 0, liftVelocity: 0, grounded: true, speed: 0,
+      cooldown: 0, recoil: 0, hp: MAX_HP, alive: true, mercy: 0, hurtFlash: 0, dying: 0,
+    });
+  };
+
   player.shoot = (dt, input, projectiles) => {
     player.cooldown = Math.max(0, player.cooldown - dt);
     player.recoil = Math.max(0, player.recoil - dt * 6);
-    if (!input.firing || player.cooldown > 0) return;
+    if (!player.alive || !input.firing || player.cooldown > 0) return;
     player.cooldown = player.weapon.cooldown;
     player.recoil = 1;
     projectiles.spawn(
@@ -119,6 +159,30 @@ export function createPlayer(scene) {
   }
 
   player.update = (dt, input, aimPoint, arena) => {
+    if (!player.alive) {
+      // Topple backwards into the mud. The propeller keeps turning, because of
+      // course it does.
+      player.dying += dt;
+      const fall = Math.min(player.dying / 1.1, 1);
+      group.visible = true;
+      group.rotation.z = fall * 1.5;
+      group.position.y = -fall * fall * .5;
+      rig.propeller.rotation.y += dt * 2;
+      return;
+    }
+
+    if (player.mercy > 0) {
+      player.mercy = Math.max(0, player.mercy - dt);
+      // Blink rather than tint: Jerry's hide materials are shared across his
+      // whole body, and flashing them would mean reaching into the model. A
+      // sawtooth rather than a sine, so the off phase is a stated fraction of
+      // the cycle — a sine crossing zero leaves him invisible nearly half the
+      // time, which reads as him vanishing rather than as mercy frames.
+      group.visible = player.mercy === 0 || (player.mercy * BLINK) % 1 > .3;
+    } else {
+      group.visible = true;
+    }
+
     turnRate = 1 - Math.pow(.0004, dt);
 
     // Camera-relative, but the camera holds a fixed yaw, so screen up is world -z.
@@ -149,6 +213,9 @@ export function createPlayer(scene) {
     collide(arena);
     face(aimPoint);
     animate(dt);
+
+    player.x = group.position.x;
+    player.z = group.position.z;
   };
 
   return player;
