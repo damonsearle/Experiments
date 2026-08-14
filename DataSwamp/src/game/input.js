@@ -18,9 +18,16 @@ import * as THREE from 'three';
 export function createInput(canvas) {
   const held = new Set();
   const input = {
-    move: new THREE.Vector2(),      // -1..1 on x (right) and y (forward)
+    move: new THREE.Vector2(),      // -1..1 on x (right) and y (forward), as the player pushed it
+    // The same intent resolved against the camera, as world x/z. main.js owns the
+    // camera so it fills this in; player.js reads only this and never has to know
+    // which way round the view is.
+    worldMove: new THREE.Vector2(),
     pointer: new THREE.Vector2(),   // normalised device coords, mouse only
-    aim: new THREE.Vector2(1, 0),   // unit direction in the same screen axes as move
+    // Unit direction in the same screen axes as move. Defaults to straight up the
+    // screen, which once the camera is following means "away from the camera" —
+    // the natural resting facing for a third-person view.
+    aim: new THREE.Vector2(0, 1),
     aimMode: 'pointer',
     jumpQueued: false,
     firing: false,
@@ -125,15 +132,22 @@ export function createInput(canvas) {
       (held.has('aimUp') ? 1 : 0) - (held.has('aimDown') ? 1 : 0),
     );
 
-    // Whichever aim source has something to say wins, and when both fall silent
-    // the last direction is held rather than snapping back — releasing the stick
-    // should stop Jerry turning, not spin him to face east.
+    // Whichever aim source has something to say wins, and when they all fall
+    // silent the last direction is held rather than snapping back — releasing
+    // the stick should stop Jerry turning, not spin him to face east.
+    //
+    // Running is the last of those sources: with no thumb on the aim stick,
+    // Jerry faces the way he is running and the camera comes round with him.
+    // That is what makes "turn and run" work as one stick instead of demanding
+    // both at once just to go somewhere and look at it.
     if (input.stick.aim.lengthSq() > 0) {
       input.aimMode = 'direction';
       input.aim.copy(input.stick.aim).normalize();
     } else if (keyAim.lengthSq() > 0) {
       input.aimMode = 'direction';
       input.aim.copy(keyAim).normalize();
+    } else if (input.aimMode === 'direction' && input.move.lengthSq() > 0) {
+      input.aim.copy(input.move).normalize();
     }
 
     input.firing = mouseFiring || input.stick.firing;

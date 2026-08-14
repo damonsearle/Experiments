@@ -154,45 +154,70 @@ kbd,
   touch-action: none;
 }
 
-/* The sticks live at the origin and are moved entirely by transform, so the
-   thumb position never touches layout. Hidden until a thumb lands on them. */
+/* Parked in the bottom corners and always drawn, so you can see the controls
+   exist before touching anything. The base slides to the thumb on grab and
+   eases back home on release — position comes entirely from transform, so the
+   corner layout below is the single source of truth for where home is. */
 .stick {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 116px;
-  height: 116px;
-  margin: -58px 0 0 -58px;
-  border: 1px solid rgba(222, 214, 191, .3);
+  position: absolute;
+  bottom: 7.5rem;
+  width: 112px;
+  height: 112px;
+  display: none;
+  border: 2px solid rgba(222, 214, 191, .28);
   border-radius: 50%;
-  background: rgba(14, 21, 18, .3);
-  opacity: 0;
+  background: rgba(14, 21, 18, .38);
   pointer-events: none;
-  transition: opacity .12s ease;
+  transition: transform .18s ease-out, border-color .12s;
 }
 
-.stick.live { opacity: 1; }
+#stick-move { left: 1.6rem; }
+#stick-aim { right: 1.6rem; }
+
+#touch.on .stick { display: block; }
+
+/* No transition while a thumb is on it, or the knob lags behind the finger. */
+.stick.live {
+  border-color: rgba(222, 214, 191, .5);
+  transition: border-color .12s;
+}
 
 .knob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 46px;
-  height: 46px;
-  margin: -23px 0 0 -23px;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
   border-radius: 50%;
-  background: rgba(222, 214, 191, .3);
-  box-shadow: 0 0 0 1px rgba(222, 214, 191, .4);
+  background: rgba(222, 214, 191, .26);
+  box-shadow: 0 0 0 2px rgba(222, 214, 191, .38);
+  transition: transform .18s ease-out;
+}
+
+.stick.live .knob { transition: none; }
+
+.stick-label {
+  position: absolute;
+  left: 50%;
+  bottom: -1.35rem;
+  transform: translateX(-50%);
+  font-size: .58rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(222, 214, 191, .5);
+  white-space: nowrap;
 }
 
 /* Sat over dark water, so it needs a real edge and a real fill — the hairline
    rules that work on the chrome disappear entirely out here. */
+/* Sits directly above the aim stick — same thumb, no overlap with either base. */
 .tap {
   position: absolute;
-  right: 1.5rem;
-  bottom: 6.5rem;
-  width: 5rem;
-  height: 5rem;
+  right: 2.6rem;
+  bottom: 15.2rem;
+  width: 4.4rem;
+  height: 4.4rem;
   display: none;
   place-items: center;
   border: 2px solid rgba(222, 214, 191, .45);

@@ -248,8 +248,9 @@ export function createPlayer(scene) {
 
     turnRate = 1 - Math.pow(.0004, dt);
 
-    // Camera-relative, but the camera holds a fixed yaw, so screen up is world -z.
-    wanted.set(input.move.x, 0, -input.move.y).multiplyScalar(SPEED);
+    // Already resolved against the camera by main.js, so this is a plain world
+    // direction however the view happens to be pointing.
+    wanted.set(input.worldMove.x, 0, input.worldMove.y).multiplyScalar(SPEED);
 
     const rate = wanted.lengthSq() > 0 ? ACCEL : FRICTION;
     velocity.x = THREE.MathUtils.damp(velocity.x, wanted.x, rate / SPEED, dt);

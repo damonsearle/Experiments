@@ -1,25 +1,22 @@
 /* --------------------------------------------------------------------------
    Touch controls: twin sticks and a jump pad.
 
-   The sticks float — each one is drawn wherever the thumb lands rather than
-   pinned to a fixed spot. Fixed sticks only work if you know the screen size
-   and how the player is holding the device, and we know neither; a floating
-   origin means the control is always exactly under the thumb that reached for
-   it.
+   The sticks are always drawn once touch mode is on, parked at a home position
+   in each bottom corner with a label under them. An invisible control is not a
+   control — the first version only drew a stick once a thumb had already found
+   it, which meant you had to already know it was there.
 
-   Left half moves, right half aims and fires while held. Firing is bound to the
-   aim stick rather than a separate button because on a two-thumb layout there
-   is no third thumb to press it with, and because it makes "point at it" and
-   "throw at it" the same gesture.
+   They still float, though: on touch-down the base jumps to wherever the thumb
+   actually landed and slides home again on release. So the home position is an
+   advertisement for where the stick is, not a target you have to hit.
 
-   The layer shows itself when the primary input is coarse, or the moment a real
-   touch arrives, and hides again as soon as a mouse is used. That way one build
-   serves a phone, a desktop and a hybrid laptop without asking anyone which
-   they are.
+   Left stick runs. Right stick turns and throws — holding it swings Jerry, and
+   the camera follows him round, so "point at it" and "throw at it" stay one
+   gesture and you can always see what you are pointing at.
    -------------------------------------------------------------------------- */
 
-const RADIUS = 58;      // px from the stick origin that counts as full deflection
-const DEAD = 6;         // px of slop before a drag registers at all
+const RADIUS = 56;      // px from the stick origin that counts as full deflection
+const DEAD = 5;         // px of slop before a drag registers at all
 
 export function createTouch(input, root) {
   const sticks = {
@@ -28,29 +25,41 @@ export function createTouch(input, root) {
   };
   const jumpPad = root.querySelector('#tap-jump');
 
+  for (const stick of Object.values(sticks)) {
+    stick.knob = stick.el.querySelector('.knob');
+    stick.origin = null;
+  }
+
   let shown = false;
+
+  function home(stick) {
+    // Parked position comes from CSS so the layout stays in one place; clearing
+    // the inline transform drops it back there.
+    stick.el.style.transform = '';
+    stick.knob.style.transform = '';
+  }
 
   function show(on) {
     if (shown === on) return;
     shown = on;
     root.classList.toggle('on', on);
     document.body.classList.toggle('touching', on);
-    if (!on) release(sticks.move), release(sticks.aim);
-  }
-
-  function place(stick, x, y) {
-    stick.el.style.transform = `translate(${x}px, ${y}px)`;
-  }
-
-  function knob(stick, dx, dy) {
-    stick.el.querySelector('.knob').style.transform = `translate(${dx}px, ${dy}px)`;
+    // There is no mouse here, so pointer aiming would leave Jerry facing a
+    // cursor that never moves and the camera pinned behind him forever. Commit
+    // to direction aiming the moment the controls appear.
+    if (on) input.aimMode = 'direction';
+    if (!on) {
+      release(sticks.move);
+      release(sticks.aim);
+    }
   }
 
   function release(stick) {
     stick.pointer = null;
+    stick.origin = null;
     stick.target.set(0, 0);
     stick.el.classList.remove('live');
-    knob(stick, 0, 0);
+    home(stick);
     if (stick === sticks.aim) input.stick.firing = false;
   }
 
@@ -58,29 +67,36 @@ export function createTouch(input, root) {
     stick.pointer = event.pointerId;
     stick.origin = { x: event.clientX, y: event.clientY };
     stick.el.classList.add('live');
-    place(stick, event.clientX, event.clientY);
-    knob(stick, 0, 0);
+
+    // Move the base to the thumb. Measured against where CSS parked it, so the
+    // offset is a delta rather than an absolute position and the corner layout
+    // stays entirely in the stylesheet.
+    const box = stick.el.getBoundingClientRect();
+    stick.parked = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    stick.el.style.transform =
+      `translate(${event.clientX - stick.parked.x}px, ${event.clientY - stick.parked.y}px)`;
+    stick.knob.style.transform = '';
   }
 
   function drag(stick, event) {
-    let dx = event.clientX - stick.origin.x;
-    let dy = event.clientY - stick.origin.y;
+    const dx = event.clientX - stick.origin.x;
+    const dy = event.clientY - stick.origin.y;
     const distance = Math.hypot(dx, dy);
 
     if (distance < DEAD) {
       stick.target.set(0, 0);
-      knob(stick, 0, 0);
-      // An aim thumb resting still is still aiming, so it keeps firing.
+      stick.knob.style.transform = '';
+      // An aim thumb resting still is still aiming, so it keeps throwing.
       if (stick === sticks.aim) input.stick.firing = true;
       return;
     }
 
-    // Clamp the knob to the ring, but let the reported vector saturate at 1 so
-    // dragging further than the ring does not keep accelerating.
+    // Clamp the knob to the ring, and let the reported vector saturate with it
+    // so dragging past the ring does not keep accelerating.
     const clamped = Math.min(distance, RADIUS);
     const nx = dx / distance;
     const ny = dy / distance;
-    knob(stick, nx * clamped, ny * clamped);
+    stick.knob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
 
     // Screen y grows downward and the game's forward axis grows upward.
     stick.target.set(nx * (clamped / RADIUS), -ny * (clamped / RADIUS));

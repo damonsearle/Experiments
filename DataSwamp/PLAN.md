@@ -109,9 +109,13 @@ went into the model. Over-the-shoulder would hide him and make swarms unreadable
 | `1`–`7` / scroll / tap a chip | Switch storage tier |
 | `Shift` | Dodge roll (brief i-frames) — stretch |
 | `P` | Pause |
-| Left half drag | Move — floating thumbstick |
-| Right half drag | Aim, and throw while held |
+| Left stick | Run. With no thumb on the right stick, Jerry turns to face the way he runs |
+| Right stick | Turn, and throw while held |
 | Jump pad | Jump |
+
+Both sticks are drawn permanently in the bottom corners with labels, and slide to meet
+the thumb on contact. The home position advertises where the control is; it is not a
+target you have to hit.
 
 Keyboard-only fallback: arrows move, `IJKL` aims twin-stick style. **Both this and
 the touch controls shipped after M3**, pulled forward out of M6 — they are the same
@@ -268,9 +272,17 @@ shadow camera fitted to the play area or cheap blob shadows under entities. Deci
 All five are now decided. Recorded here rather than deleted, because the reasoning is what stops
 them being reopened by accident later.
 
-1. **Camera — 3/4 follow.** Settled at M0 and confirmed by playing M2: the fixed yaw keeps screen-up
-   pinned to world -z so movement never inverts, and the whole of Jerry stays on screen.
-   Over-the-shoulder is rejected — it would hide the model and make swarms unreadable.
+1. **Camera — 3/4 follow, yaw pinned under mouse and following under stick.** The distance and the
+   ~31° pitch never change, and over-the-shoulder stays rejected — it would hide the model and make
+   swarms unreadable. What changed after playing the touch build: a *pinned* yaw only works when you
+   can see where you are aiming. With a mouse you can, so it stays pinned. With a stick you cannot —
+   pointing somewhere off-camera is aiming blind — so there the camera swings round behind whatever
+   Jerry is facing, slower than he turns, so it trails the throw instead of whipping with it.
+
+   The original worry about a turning camera inverting the controls is handled by resolving every
+   screen intent — both sticks and `WASD` — against the camera's *current* yaw every frame, in
+   `main.js`. `player.js` only ever receives a world direction and never learns which way round the
+   view is.
 2. **Aiming — mouse primary, twin-stick alongside it.** The mouse stays the precise, desktop-first
    scheme the pinpoint tiers (USB, SSD) are designed around. The twin-stick fallback was originally
    deferred to M6 and then **pulled forward and shipped after M3**, on the grounds that touch and

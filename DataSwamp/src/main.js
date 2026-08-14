@@ -63,13 +63,40 @@ let restock = 0;
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 300);
 // ~31 degrees above the horizon. Steeper than this and Jerry reads as a hat seen from above;
 // shallower and the arena stops being legible.
-const CAMERA_OFFSET = new THREE.Vector3(0, 6.6, 11);
+const CAMERA_DISTANCE = 11;
+const CAMERA_LIFT = 6.6;
 const LOOK_LIFT = 1.4;
+
+// Which way round the camera sits, as a yaw in Jerry's own convention. Mouse aim
+// pins it: you can see and click anywhere on screen, so the camera never needs to
+// turn, and a fixed yaw keeps screen-up welded to world -z so movement can never
+// invert. Stick aim cannot work that way — pointing somewhere off-camera would be
+// aiming blind — so there the camera swings round behind whatever Jerry is facing.
+//
+// PI/2 is the historical fixed view: camera on +z looking down -z.
+const PINNED_YAW = Math.PI / 2;
+let cameraYaw = PINNED_YAW;
 
 const cameraGoal = new THREE.Vector3();
 const lookAt = new THREE.Vector3();
-camera.position.copy(player.group.position).add(CAMERA_OFFSET);
+const moveBasis = new THREE.Vector2();
+const offsetScratch = new THREE.Vector3();
+
+function cameraOffset(yaw, into) {
+  return into.set(-Math.cos(yaw) * CAMERA_DISTANCE, CAMERA_LIFT, Math.sin(yaw) * CAMERA_DISTANCE);
+}
+
+camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, new THREE.Vector3()));
 lookAt.copy(player.group.position);
+
+// Screen intent to world direction, against wherever the camera currently is.
+// Everything the player pushes — move stick, aim stick, WASD — goes through here,
+// so a turning camera can never leave the controls pointing the old way.
+function toWorld(x, y, into) {
+  const cos = Math.cos(cameraYaw);
+  const sin = Math.sin(cameraYaw);
+  return into.set(cos * y + sin * x, -sin * y + cos * x);
+}
 
 /* ------------------------------------------------------------------------- aim */
 
@@ -103,12 +130,13 @@ const AIM_REACH = 7;
 
 function updateAim() {
   if (input.aimMode === 'direction') {
-    // The camera holds a fixed yaw, so screen-up is world -z and a stick vector
-    // maps straight onto the ground plane with no projection needed.
+    // A stick vector is screen intent, so it resolves against the camera and
+    // needs no projection — there is no point on screen to project from.
+    toWorld(input.aim.x, input.aim.y, moveBasis);
     aimPoint.set(
-      player.group.position.x + input.aim.x * AIM_REACH,
+      player.group.position.x + moveBasis.x * AIM_REACH,
       FLIGHT_Y,
-      player.group.position.z - input.aim.y * AIM_REACH,
+      player.group.position.z + moveBasis.y * AIM_REACH,
     );
   } else {
     raycaster.setFromCamera(input.pointer, camera);
@@ -236,7 +264,8 @@ function restart() {
   pickups.reset();
   populate();
   restock = 0;
-  camera.position.copy(player.group.position).add(CAMERA_OFFSET);
+  cameraYaw = PINNED_YAW;
+  camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
   lookAt.copy(player.group.position);
 }
 
@@ -260,6 +289,10 @@ function frame() {
 
   input.sample();
   updateAim();
+  // Resolve the move stick against the camera before the player ever sees it,
+  // so player.js stays a pure "go this way in the world" and never has to know
+  // which way round the view is.
+  toWorld(input.move.x, input.move.y, input.worldMove);
   player.update(dt, input, aimPoint, arena);
   player.shoot(dt, input, projectiles);
   projectiles.update(dt, {
@@ -286,7 +319,16 @@ function frame() {
   // Frame-rate independent easing: the same fraction of the gap closes per second
   // regardless of how often we tick.
   const ease = 1 - Math.pow(.0006, dt);
-  cameraGoal.copy(player.group.position).add(CAMERA_OFFSET);
+
+  // Swing round behind Jerry when he is being aimed by stick, and hold the pinned
+  // view when he is being aimed by mouse. The swing is deliberately slower than
+  // his turn, so the camera trails the throw rather than whipping with it.
+  const wantedYaw = input.aimMode === 'direction' ? player.group.rotation.y : PINNED_YAW;
+  let swing = wantedYaw - cameraYaw;
+  swing = Math.atan2(Math.sin(swing), Math.cos(swing));
+  cameraYaw += swing * (1 - Math.pow(.06, dt));
+
+  cameraGoal.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
   camera.position.lerp(cameraGoal, ease);
   lookAt.lerp(player.group.position, ease);
   camera.lookAt(lookAt.x, lookAt.y + LOOK_LIFT, lookAt.z);
