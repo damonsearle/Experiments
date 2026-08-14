@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createJerry } from '../creature/jerry.js';
-import { WEAPONS } from './weapons.js';
+import { ARSENAL } from './weapons.js';
 
 const SPEED = 8.2;
 const ACCEL = 58;
@@ -36,7 +36,10 @@ export function createPlayer(scene) {
     grounded: true,
     stride: 0,        // drives the run cycle
     speed: 0,
-    weapon: WEAPONS[0],
+    weapon: ARSENAL[0],
+    // Rounds held per tier. The floppy is deliberately absent from the ledger:
+    // it is the floor Jerry can never be disarmed below.
+    ammo: {},
     cooldown: 0,
     recoil: 0,
     hp: MAX_HP,
@@ -62,6 +65,48 @@ export function createPlayer(scene) {
 
   // Shots leave along the true aim rather than the lagged body rotation, so firing lands
   // where the cursor is even mid-turn.
+  /* ------------------------------------------------------------- the arsenal */
+
+  const rounds = weapon => (weapon.magazine === Infinity ? Infinity : player.ammo[weapon.id] ?? 0);
+  player.rounds = rounds;
+
+  // Selecting a tier Jerry has no rounds for is refused rather than silently
+  // redirected — a selector that lies about what is loaded is worse than one
+  // that says no.
+  player.select = weapon => {
+    if (!weapon || rounds(weapon) <= 0) return false;
+    if (player.weapon !== weapon) player.cooldown = Math.max(player.cooldown, .12);
+    player.weapon = weapon;
+    return true;
+  };
+
+  // Scroll steps over what is actually usable, skipping empty tiers, so a flick
+  // of the wheel never lands on a dead slot.
+  player.cycle = direction => {
+    const usable = ARSENAL.filter(weapon => rounds(weapon) > 0);
+    if (usable.length < 2) return;
+    const at = usable.indexOf(player.weapon);
+    const next = (at + direction + usable.length * 2) % usable.length;
+    player.select(usable[next]);
+  };
+
+  player.give = (weapon, amount) => {
+    if (weapon.magazine === Infinity) return false;
+    const held = player.ammo[weapon.id] ?? 0;
+    if (held >= weapon.magazine * 2) return false;   // pouches are full
+    player.ammo[weapon.id] = Math.min(held + amount, weapon.magazine * 2);
+    // Auto-equip anything better than what is in hand, which is what makes
+    // running to a cache feel like an upgrade rather than an errand.
+    if (weapon.tier > player.weapon.tier) player.select(weapon);
+    return true;
+  };
+
+  player.heal = amount => {
+    if (player.hp >= player.maxHp) return false;
+    player.hp = Math.min(player.maxHp, player.hp + amount);
+    return true;
+  };
+
   // Ignored while the mercy window is open, so a Compsognathus pack cannot chain
   // three .TXT hits into an unreactable death.
   player.hurt = amount => {
@@ -82,6 +127,8 @@ export function createPlayer(scene) {
     group.visible = true;
     velocity.set(0, 0, 0);
     facing.set(1, 0, 0);
+    player.ammo = {};
+    player.weapon = ARSENAL[0];
     Object.assign(player, {
       x: 0, z: 0, lift: 0, liftVelocity: 0, grounded: true, speed: 0,
       cooldown: 0, recoil: 0, hp: MAX_HP, alive: true, mercy: 0, hurtFlash: 0, dying: 0,
@@ -91,11 +138,27 @@ export function createPlayer(scene) {
   player.shoot = (dt, input, projectiles) => {
     player.cooldown = Math.max(0, player.cooldown - dt);
     player.recoil = Math.max(0, player.recoil - dt * 6);
+
+    const wanted = input.takeTier();
+    if (wanted) player.select(ARSENAL[wanted - 1]);
+    const step = input.takeCycle();
+    if (step) player.cycle(step);
+
     if (!player.alive || !input.firing || player.cooldown > 0) return;
-    player.cooldown = player.weapon.cooldown;
+
+    const weapon = player.weapon;
+    if (rounds(weapon) <= 0) {
+      // Dry mid-burst: drop to the floppy rather than stopping dead, so running
+      // out changes what Jerry is throwing and never that he is throwing.
+      player.weapon = ARSENAL[0];
+      return;
+    }
+    if (weapon.magazine !== Infinity) player.ammo[weapon.id] -= 1;
+
+    player.cooldown = weapon.cooldown;
     player.recoil = 1;
     projectiles.spawn(
-      player.weapon,
+      weapon,
       group.position.x + facing.x * .95,
       group.position.z + facing.z * .95,
       facing.x,

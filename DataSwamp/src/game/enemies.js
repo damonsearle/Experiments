@@ -223,7 +223,7 @@ export function createEnemies(scene, kit) {
     enemy.glow.material.opacity = .3 + winding * .6;
   }
 
-  function update(dt, camera, target, arena, projectiles) {
+  function update(dt, { camera, target, arena, projectiles }) {
     separate(dt);
 
     for (let i = list.length - 1; i >= 0; i--) {
@@ -297,9 +297,12 @@ export function createEnemies(scene, kit) {
           enemy.state = 'strafe';
         }
 
-        enemy.speed = traits.speed;
-        enemy.x += moveX * traits.speed * dt;
-        enemy.z += moveZ * traits.speed * dt;
+        // Spilt tape drags. This is the whole reason the Tape Drive stays worth
+        // carrying after its damage has been beaten twice over.
+        const drag = projectiles.drag(enemy.x, enemy.z);
+        enemy.speed = traits.speed * drag;
+        enemy.x += moveX * enemy.speed * dt;
+        enemy.z += moveZ * enemy.speed * dt;
 
         // Only wind up once actually in range, or the shot lands where Jerry
         // was two seconds ago and the telegraph teaches nothing.

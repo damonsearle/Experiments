@@ -132,13 +132,77 @@ kbd,
   letter-spacing: .08em;
 }
 
+/* --------------------------------------------------------- storage selector */
+
+.tiers {
+  display: flex;
+  gap: .4rem;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.tier {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .3rem .55rem;
+  border: 1px solid var(--rule);
+  background: rgba(14, 21, 18, .55);
+  font-size: .64rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
+}
+
+/* Empty reads as unavailable rather than absent — the ladder stays legible so
+   you can see what you are hunting for out in the swamp. */
+.tier.empty {
+  opacity: .38;
+}
+
+.tier.active {
+  border-color: var(--amber);
+  background: rgba(210, 166, 63, .12);
+  color: var(--bone);
+}
+
+.tier-swatch {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .45);
+}
+
+.tier-key {
+  font-size: .58rem;
+  color: var(--bone-dim);
+}
+
+.tier.active .tier-key { color: var(--amber); }
+
+.tier-name {
+  font-family: var(--serif);
+  font-size: .78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tier-ammo {
+  font-variant-numeric: tabular-nums;
+  color: var(--amber);
+  min-width: 1.6em;
+  text-align: right;
+}
+
 /* ---------------------------------------------------------------- integrity */
 
 .health {
   display: flex;
   align-items: center;
   gap: .5rem;
-  margin-left: auto;
 }
 
 .health-label {
@@ -214,6 +278,10 @@ kbd,
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--bone-dim);
+}
+
+@media (max-width: 62rem) {
+  .tier-name { display: none; }
 }
 
 @media (max-width: 34rem) {

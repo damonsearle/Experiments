@@ -9,6 +9,8 @@ export function createInput(canvas) {
     pointer: new THREE.Vector2(), // normalised device coords
     jumpQueued: false,
     firing: false,
+    tierQueued: 0,    // 1-based tier the player asked for, 0 for none
+    cycleQueued: 0,   // accumulated scroll steps
   };
 
   const CODES = {
@@ -23,6 +25,16 @@ export function createInput(canvas) {
       event.preventDefault();
       // Queued rather than held, so a jump is consumed once and never auto-repeats.
       input.jumpQueued = true;
+      return;
+    }
+    // Digit1..Digit4 rather than event.key, so the tier keys survive a layout
+    // where the unshifted top row is not digits.
+    if (event.code.startsWith('Digit')) {
+      const tier = Number(event.code.slice(5));
+      if (tier >= 1 && tier <= 7) {
+        event.preventDefault();
+        input.tierQueued = tier;
+      }
       return;
     }
     const action = CODES[event.code];
@@ -53,6 +65,13 @@ export function createInput(canvas) {
   canvas.addEventListener('pointerdown', () => { input.firing = true; });
   addEventListener('pointerup', () => { input.firing = false; });
 
+  // One step per gesture regardless of how much delta the device reports — a
+  // trackpad flick otherwise cycles the whole arsenal several times over.
+  canvas.addEventListener('wheel', event => {
+    event.preventDefault();
+    input.cycleQueued += Math.sign(event.deltaY);
+  }, { passive: false });
+
   input.sample = () => {
     input.move.set(
       (held.has('right') ? 1 : 0) - (held.has('left') ? 1 : 0),
@@ -65,6 +84,18 @@ export function createInput(canvas) {
   input.takeJump = () => {
     const queued = input.jumpQueued;
     input.jumpQueued = false;
+    return queued;
+  };
+
+  input.takeTier = () => {
+    const queued = input.tierQueued;
+    input.tierQueued = 0;
+    return queued;
+  };
+
+  input.takeCycle = () => {
+    const queued = input.cycleQueued;
+    input.cycleQueued = 0;
     return queued;
   };
 

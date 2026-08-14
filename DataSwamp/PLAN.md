@@ -252,13 +252,23 @@ shadow camera fitted to the play area or cheap blob shadows under entities. Deci
 
 ---
 
-## 9. Open questions
+## 9. Settled questions
 
-1. **Camera** — is the 3/4 follow right, or do you want over-the-shoulder despite losing arena
-   legibility?
-2. **Aiming** — mouse-aim (precise, desktop-first) or twin-stick keyboard (works everywhere)?
-3. **Art direction** — keep Data Dash's neon-brutalist HUD for continuity, or go grubby and organic
-   to match the swamp?
-4. **Repo shape** — a sibling folder in this repo deployed as a second Pages entry, or its own repo?
-5. **Tone of failure** — Data Dash's "SYSTEM FAILURE / DATA OVERLOAD". Does Jerry getting overwhelmed
-   here mean data loss, or something sillier?
+All five are now decided. Recorded here rather than deleted, because the reasoning is what stops
+them being reopened by accident later.
+
+1. **Camera — 3/4 follow.** Settled at M0 and confirmed by playing M2: the fixed yaw keeps screen-up
+   pinned to world -z so movement never inverts, and the whole of Jerry stays on screen.
+   Over-the-shoulder is rejected — it would hide the model and make swarms unreadable.
+2. **Aiming — mouse only, for now.** Precise and desktop-first, and the pinpoint tiers (USB, SSD) are
+   designed around it. The twin-stick keyboard fallback in §4.1 is **deferred to M6**, where it gets
+   solved once alongside touch controls rather than twice.
+3. **Art direction — grubby and organic.** The HUD extends the existing mud/bone/tannin/amber chrome:
+   serif title, hairline rules, and saturation reserved for projectiles and pickups so they stay the
+   only loud things on screen. Data Dash's neon-brutalist HUD is rejected — it would compete with the
+   file-type projectiles for attention, which is exactly what the palette rule in §5 exists to prevent.
+4. **Repo shape — sibling folder.** `DataSwamp/` beside `GrandTheftData/`, built as a second entry by
+   the shared Pages workflow and served under `/swamp/`.
+5. **Tone of failure — "Data loss".** Dry and in-world: the joke is that the backup engineer is the
+   one thing that did not get backed up. Data Dash's "SYSTEM FAILURE" register is not reused; the two
+   games share a visual language, not a voice.

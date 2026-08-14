@@ -5,14 +5,16 @@ import { createPlayer } from './game/player.js';
 import { createInput } from './game/input.js';
 import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
+import { createPickups, HEALTH_AMOUNT } from './game/pickups.js';
 import { createDinoKit } from './creature/dinos.js';
+import { ARSENAL } from './game/weapons.js';
 
 const canvas = document.querySelector('#game');
 const readout = document.querySelector('#readout');
-const weaponChip = document.querySelector('#weapon');
 const healthFill = document.querySelector('#health-fill');
 const hurtVeil = document.querySelector('#hurt');
 const overPanel = document.querySelector('#over');
+const tierList = document.querySelector('#tiers');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -47,7 +49,11 @@ function populate() {
 }
 populate();
 
-weaponChip.textContent = player.weapon.name;
+const pickups = createPickups(scene);
+
+// Placeholder for the wave director at M5. Without it a cleared arena leaves
+// nothing to do, and M3 is meant to be the build you can actually sit and play.
+let restock = 0;
 
 /* ---------------------------------------------------------------------- camera */
 
@@ -125,6 +131,36 @@ if (import.meta.env.DEV) {
 
 /* ------------------------------------------------------------------------ hud */
 
+// One chip per tier, built once. Each carries a swatch in the tier's own tint,
+// so the selector, the projectile in flight and the cache beacon across the
+// arena are all the same colour.
+const tierChips = ARSENAL.map((weapon, index) => {
+  const item = document.createElement('li');
+  item.className = 'tier';
+
+  const swatch = document.createElement('span');
+  swatch.className = 'tier-swatch';
+  swatch.style.background = `#${weapon.tint.toString(16).padStart(6, '0')}`;
+  item.append(swatch);
+
+  const key = document.createElement('span');
+  key.className = 'tier-key';
+  key.textContent = index + 1;
+  item.append(key);
+
+  const name = document.createElement('span');
+  name.className = 'tier-name';
+  name.textContent = weapon.name;
+  item.append(name);
+
+  const ammo = document.createElement('span');
+  ammo.className = 'tier-ammo';
+  item.append(ammo);
+
+  tierList.append(item);
+  return { weapon, item, ammo };
+});
+
 let sinceReadout = 0;
 let veil = 0;
 
@@ -146,11 +182,25 @@ function updateHud(dt) {
   sinceReadout = 0;
 
   healthFill.style.transform = `scaleX(${(player.hp / player.maxHp).toFixed(3)})`;
+
+  for (const chip of tierChips) {
+    const held = player.rounds(chip.weapon);
+    chip.item.classList.toggle('active', player.weapon === chip.weapon);
+    chip.item.classList.toggle('empty', held <= 0);
+    chip.ammo.textContent = held === Infinity ? '∞' : held;
+  }
+
   const standing = enemies.list.filter(enemy => enemy.alive).length;
   readout.textContent =
-    `hp ${String(Math.ceil(player.hp)).padStart(3)}  targets ${standing}  ` +
-    `shots ${String(projectiles.live.length).padStart(2)}  ` +
+    `targets ${standing}  shots ${String(projectiles.live.length).padStart(2)}  ` +
     `${player.grounded ? 'grounded' : 'airborne'}`;
+}
+
+// Returning false leaves the cache standing, so walking over coffee at full
+// integrity does not waste it.
+function collect(pickup) {
+  if (pickup.kind === 'health') return player.heal(HEALTH_AMOUNT);
+  return player.give(pickup.weapon, pickup.weapon.magazine);
 }
 
 addEventListener('keydown', event => {
@@ -158,7 +208,9 @@ addEventListener('keydown', event => {
   player.reset();
   enemies.clear();
   projectiles.clear();
+  pickups.reset();
   populate();
+  restock = 0;
   camera.position.copy(player.group.position).add(CAMERA_OFFSET);
   lookAt.copy(player.group.position);
 });
@@ -178,15 +230,23 @@ function frame() {
   projectiles.update(dt, {
     hostiles: enemies.list,
     player,
-    onHostileHit(target, shot) {
-      enemies.damage(target, shot.spec.damage, shot.x, shot.z);
-    },
-    onPlayerHit(shot) {
-      player.hurt(shot.spec.damage);
-    },
+    hit: enemies.damage,
+    hurtPlayer: player.hurt,
   });
-  enemies.update(dt, camera, player, arena, projectiles);
+  enemies.update(dt, { camera, target: player, arena, projectiles });
+  pickups.update(dt, player, collect);
   updateHud(dt);
+
+  // Placeholder wave behaviour: once the swamp is clear, another lot wanders in.
+  if (player.alive && enemies.list.length === 0) {
+    restock += dt;
+    if (restock > 4) {
+      restock = 0;
+      populate();
+    }
+  } else {
+    restock = 0;
+  }
 
   // Frame-rate independent easing: the same fraction of the gap closes per second
   // regardless of how often we tick.
