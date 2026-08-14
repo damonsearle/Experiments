@@ -30,7 +30,7 @@
       <ul class="brief">
         <li><span class="by-key"><kbd>WASD</kbd> run · mouse to aim · click to throw · <kbd>Space</kbd> to jump</span>
             <span class="by-tap">Left stick runs and steers · right pad throws · Jerry throws where he runs</span></li>
-        <li><span class="by-key"><kbd>1</kbd>–<kbd>4</kbd> or scroll to swap storage</span>
+        <li><span class="by-key"><kbd>1</kbd>–<kbd>7</kbd> or scroll to swap storage · <kbd>P</kbd> to pause</span>
             <span class="by-tap">Tap a chip to swap storage</span></li>
         <li>Jumping clears shots fired along the ground. Not the ones dropped from above.</li>
       </ul>
@@ -38,6 +38,11 @@
     </div>
 
     <p id="banner" role="status"></p>
+
+    <div id="pause" role="status">
+      <p class="verdict">Paused</p>
+      <p class="hint"><span class="by-key"><kbd>P</kbd> or any key to resume</span><span class="by-tap">Tap to resume</span></p>
+    </div>
 
     <div id="over" role="status">
       <p class="verdict">Data loss</p>
@@ -54,7 +59,8 @@
         <li><span class="mouse">Mouse</span> aim</li>
         <li><span class="mouse">Click</span> throw</li>
         <li><kbd>Space</kbd> jump <span class="note">— clears ground shots</span></li>
-        <li><kbd>1</kbd>–<kbd>4</kbd> <span class="mouse">Scroll</span> swap</li>
+        <li><kbd>1</kbd>–<kbd>7</kbd> <span class="mouse">Scroll</span> swap</li>
+        <li><kbd>P</kbd> pause</li>
       </ul>
 
       <ol class="tiers" id="tiers" aria-label="Storage tiers"></ol>

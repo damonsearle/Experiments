@@ -622,31 +622,52 @@ const BUILDERS = {
   rex: { build: buildRex, make: makeRex, crest: 0x3b2a1c },
 };
 
-// Call once, at boot. Every blob() in the file runs here and nowhere else.
+// Species geometry is built the first time it is actually needed, not all at
+// boot. Seven species of blob() is several seconds of ray-marching on a phone,
+// and spending it up front buys a blank screen before anything is on the water —
+// when wave one only ever needs Compsognathus.
+//
+// The cost still has to land somewhere, so `prewarm()` lets the wave director
+// pay it during a breather, where a hitch is invisible, rather than on first
+// spawn, where it would be a stutter in the middle of a fight.
 export function createDinoKit() {
   const kit = {};
+  const built = new Map();
 
-  for (const [id, entry] of Object.entries(BUILDERS)) {
+  function ensure(id) {
+    let record = built.get(id);
+    if (record) return record;
+
+    const entry = BUILDERS[id];
     const parts = entry.build();
-    const prototypeMaterials = {
-      body: hideMaterial(parts.hide, [2, 1.6]),
-      limb: hideMaterial(parts.hide, [1.4, 1.1]),
-      eye: new THREE.MeshStandardMaterial({ color: 0x140d07, roughness: .3 }),
-      crest: new THREE.MeshStandardMaterial({ color: entry.crest, roughness: .6 }),
-      tooth: new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: .45 }),
+    record = {
+      entry,
+      parts,
+      prototypes: {
+        body: hideMaterial(parts.hide, [2, 1.6]),
+        limb: hideMaterial(parts.hide, [1.4, 1.1]),
+        eye: new THREE.MeshStandardMaterial({ color: 0x140d07, roughness: .3 }),
+        crest: new THREE.MeshStandardMaterial({ color: entry.crest, roughness: .6 }),
+        tooth: new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: .45 }),
+      },
     };
+    built.set(id, record);
+    return record;
+  }
 
+  for (const id of Object.keys(BUILDERS)) {
     kit[id] = {
       id,
       // Fresh materials per individual so a hit flashes one dinosaur, not the
       // whole species. `skins` is the subset a flash should tint.
       spawn() {
+        const { entry, parts, prototypes } = ensure(id);
         const materials = {
-          body: prototypeMaterials.body.clone(),
-          limb: prototypeMaterials.limb.clone(),
-          eye: prototypeMaterials.eye,
-          crest: prototypeMaterials.crest.clone(),
-          tooth: prototypeMaterials.tooth,
+          body: prototypes.body.clone(),
+          limb: prototypes.limb.clone(),
+          eye: prototypes.eye,
+          crest: prototypes.crest.clone(),
+          tooth: prototypes.tooth,
         };
         const rig = entry.make(parts, materials);
         rig.skins = [materials.body, materials.limb, materials.crest];
@@ -654,6 +675,10 @@ export function createDinoKit() {
       },
     };
   }
+
+  kit.prewarm = ids => {
+    for (const id of ids) if (BUILDERS[id]) ensure(id);
+  };
 
   return kit;
 }

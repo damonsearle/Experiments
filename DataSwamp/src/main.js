@@ -18,11 +18,19 @@ const healthFill = document.querySelector('#health-fill');
 const hurtVeil = document.querySelector('#hurt');
 const overPanel = document.querySelector('#over');
 const startPanel = document.querySelector('#start');
+const pausePanel = document.querySelector('#pause');
 const bannerPanel = document.querySelector('#banner');
 const tierList = document.querySelector('#tiers');
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// A phone is assumed to be the tighter budget: fewer pixels and a smaller shadow
+// map. Detected from the pointer rather than the user agent, because what
+// actually correlates with a weak GPU here is being a touch device.
+const LEAN = matchMedia('(pointer: coarse)').matches;
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LEAN });
+// Capped hard on phones. At a device pixel ratio of 3 the honest number is four
+// times the fragments of a desktop at 1.5, for a screen a few inches across.
+renderer.setPixelRatio(Math.min(devicePixelRatio, LEAN ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -31,7 +39,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
-const arena = createArena(scene);
+const arena = createArena(scene, { lean: LEAN });
 const player = createPlayer(scene);
 const input = createInput(canvas);
 const projectiles = createProjectiles(scene);
@@ -48,6 +56,7 @@ waves.reset();
 // Nothing spawns until the player dismisses the opening panel, so there is time
 // to look at the swamp and find out what the sticks do before anything arrives.
 let started = false;
+let paused = false;
 
 /* ---------------------------------------------------------------------- camera */
 
@@ -298,9 +307,35 @@ startPanel.addEventListener('pointerdown', event => {
   begin();
 });
 
+function setPaused(on) {
+  // Never pause over the top of a panel — the opening screen and the death
+  // screen are already a stopped game, and stacking a third one on them just
+  // means two things to dismiss.
+  if (on && (!started || !player.alive)) return;
+  paused = on;
+  pausePanel.classList.toggle('shown', paused);
+  // Let go of the throw, or Jerry resumes mid-burst having never released it.
+  input.firing = false;
+  input.stick.firing = false;
+}
+
 addEventListener('keydown', event => {
   if (event.code === 'KeyR') restart();
-  else begin();
+  else if (event.code === 'KeyP') setPaused(!paused);
+  else if (!started) begin();
+  else if (paused) setPaused(false);
+});
+
+pausePanel.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  setPaused(false);
+});
+
+// Backgrounding the tab is a pause whether or not anyone asked for one. Without
+// this, coming back to it hands the loop one enormous delta and teleports every
+// dinosaur onto Jerry at once.
+addEventListener('visibilitychange', () => {
+  if (document.hidden) setPaused(true);
 });
 
 // There is no R key on a phone, so the panel itself is the button.
@@ -316,6 +351,13 @@ const clock = new THREE.Clock();
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), .05);
+
+  // Still rendered while paused, so the swamp is visible behind the panel — but
+  // nothing advances, and the clamped delta means resuming never jumps.
+  if (paused) {
+    renderer.render(scene, camera);
+    return;
+  }
 
   input.sample();
   updateAim();

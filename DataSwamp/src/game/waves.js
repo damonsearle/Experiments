@@ -84,6 +84,7 @@ export function createWaves(enemies, arena) {
       state.timer = FIRST_BREATHER;
       state.banner = `Wave 1 — ${billing(WAVES[0])}`;
       state.cleared = false;
+      enemies.prewarm(Object.keys(WAVES[0]));
     },
 
     update(dt) {
@@ -108,6 +109,8 @@ export function createWaves(enemies, arena) {
       state.phase = 'breather';
       state.timer = BREATHER;
       state.banner = `Wave ${state.index + 1} — ${billing(WAVES[state.index])}`;
+      // Pay for the next wave's geometry now, while nothing is happening.
+      enemies.prewarm(Object.keys(WAVES[state.index]));
     },
   };
 }

@@ -408,5 +408,9 @@ export function createEnemies(scene, kit) {
     list.length = 0;
   }
 
-  return { list, spawn, damage, update, clear };
+  // Build a species' geometry ahead of needing it, so the ray-marching lands in
+  // a breather rather than as a stutter on the first spawn of a wave.
+  const prewarm = ids => kit.prewarm(ids);
+
+  return { list, spawn, damage, update, clear, prewarm };
 }

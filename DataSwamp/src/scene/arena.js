@@ -86,7 +86,7 @@ function mudMap(seed) {
   return texture;
 }
 
-export function createArena(scene) {
+export function createArena(scene, { lean = false } = {}) {
   scene.background = new THREE.Color(0x121a15);
   // Thicker than M1's. The fog is doing real work now: it hides where the mud
   // flat ends and stops the ruins reading as props sitting on a disc. Any denser
@@ -101,7 +101,11 @@ export function createArena(scene) {
   const key = new THREE.DirectionalLight(0xfff2dc, 2.6);
   key.position.set(14, 22, 10);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  // Halved on phones. Because the shadow camera already travels with Jerry and
+  // covers only ±15 units, 1024 there still lands more texels per metre than a
+  // 2048 map stretched across the whole arena would have.
+  const shadowSize = lean ? 1024 : 2048;
+  key.shadow.mapSize.set(shadowSize, shadowSize);
   // The §8 shadow decision: rather than one map stretched over the whole arena,
   // a tight camera that travels with Jerry. Same memory, roughly six times the
   // texel density where anyone is actually looking. The light and its target
@@ -140,20 +144,36 @@ export function createArena(scene) {
 
   const waterGeometry = new THREE.PlaneGeometry(190, 190, 60, 60);
   waterGeometry.rotateX(-Math.PI / 2);
-  const water = new THREE.Mesh(waterGeometry, new THREE.MeshStandardMaterial({
+  const waterMaterial = new THREE.MeshStandardMaterial({
     color: 0x46543a,
     roughness: .22,
     metalness: .1,
     bumpMap: waterMaps(7),
     bumpScale: .35,
-  }));
+  });
+
+  // The ripple runs on the GPU. Doing it in JS meant rewriting nearly four
+  // thousand vertices and re-uploading the buffer every single frame, for a
+  // surface that is mostly hidden behind the reeds — by far the largest
+  // per-frame cost in the scene, and all of it avoidable. Normals are left
+  // alone deliberately: the bump map is what actually sells the water, and
+  // recomputing them would put the whole cost straight back.
+  let waterUniforms = null;
+  waterMaterial.onBeforeCompile = shader => {
+    shader.uniforms.uTime = { value: 0 };
+    shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+       transformed.y += sin(position.x * 0.18 + uTime * 0.9) * 0.10
+                      + sin(position.z * 0.23 - uTime * 0.7) * 0.08;`,
+    );
+    waterUniforms = shader.uniforms;
+  };
+
+  const water = new THREE.Mesh(waterGeometry, waterMaterial);
   water.position.y = WATER_Y;
   water.receiveShadow = true;
   scene.add(water);
-
-  // Kept so the ripple can be recomputed from the rest position every frame
-  // rather than accumulating drift.
-  const waterRest = Float32Array.from(waterGeometry.attributes.position.array);
 
   /* -------------------------------------------------------------- the flat */
 
@@ -281,23 +301,11 @@ export function createArena(scene) {
     elapsed += dt;
     ruins.update(dt);
 
-    // Two crossed waves, recomputed from the rest pose so nothing drifts.
-    const position = waterGeometry.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-      const x = waterRest[i * 3];
-      const z = waterRest[i * 3 + 2];
-      position.setY(
-        i,
-        Math.sin(x * .18 + elapsed * .9) * .10 +
-        Math.sin(z * .23 - elapsed * .7) * .08,
-      );
-    }
-    position.needsUpdate = true;
+    if (waterUniforms) waterUniforms.uTime.value = elapsed;
 
     // Scroll the scum across the surface, slower than the waves so the two do
     // not lock together into an obviously repeating pattern.
-    const bump = water.material.bumpMap;
-    bump.offset.set(elapsed * .012, elapsed * .008);
+    water.material.bumpMap.offset.set(elapsed * .012, elapsed * .008);
 
     spores.rotation.y = elapsed * .015;
     const sporeArray = sporeGeometry.attributes.position.array;

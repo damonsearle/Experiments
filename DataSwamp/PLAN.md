@@ -250,7 +250,27 @@ Each milestone ends with something runnable. No milestone depends on art that do
 | **M3** | Arsenal | 4 storage tiers, switching, ammo pickups, HUD showing health/ammo/tier. **This is the first genuinely playable build.** |
 | **M4** | The swamp | Water, islands, jumpable obstacles, flora, ruins, fog, atmosphere pass. |
 | **M5** | Structure | Wave director, remaining species and weapons, T-Rex boss, start/game-over panels, audio. |
-| **M6** | Polish | Perf pass, and the shadow decision from §8. Touch controls and the Pages deploy both landed early — see §4.1 and §9.2. |
+| **M6** | Polish | Perf pass and pause. Touch controls, the Pages deploy and the §8 shadow decision all landed earlier — see §4.1, §8 and §9.2. |
+
+**What the perf pass actually changed.** Measured against the phone budget rather than the
+desktop one, because the desktop was never in trouble:
+
+- **Species geometry is built on demand, not at boot.** Seven species of `blob()` up front is
+  several seconds of ray-marching on a phone, spent to show a blank screen — when wave one
+  only ever needs Compsognathus. The wave director calls `prewarm()` for the *next* wave
+  during a breather, so the cost lands where a hitch is invisible.
+- **The water ripple moved to the vertex shader.** It was rewriting ~3,700 vertices and
+  re-uploading the buffer every frame, for a surface mostly hidden behind the reeds. Normals
+  are deliberately not recomputed — the bump map is what sells the water, and recomputing
+  would put the whole cost straight back.
+- **Render budget follows the pointer, not the user agent.** What correlates with a weak GPU
+  here is being a touch device: coarse pointers get a 1024 shadow map, a 1.5 pixel-ratio cap
+  and no MSAA.
+- **Backgrounding the tab pauses.** Without it, returning hands the loop one enormous delta
+  and teleports every dinosaur onto Jerry at once.
+
+Still on the table if it needs more: `blob()` segment counts per species, and the `separate()`
+pass, which is O(n²) and currently harmless at wave nine's thirteen enemies.
 
 ---
 
