@@ -20,6 +20,7 @@ const overPanel = document.querySelector('#over');
 const startPanel = document.querySelector('#start');
 const pausePanel = document.querySelector('#pause');
 const bannerPanel = document.querySelector('#banner');
+const againButton = document.querySelector('#again');
 const tierList = document.querySelector('#tiers');
 
 // A phone is assumed to be the tighter budget: fewer pixels and a smaller shadow
@@ -77,7 +78,9 @@ const LOOK_LIFT = 1.4;
 //
 // PI/2 is the historical fixed view: camera on +z looking down -z.
 const PINNED_YAW = Math.PI / 2;
+const CAMERA_TURN = 1.9;      // radians per second on the view keys
 let cameraYaw = PINNED_YAW;
+let recentreTo = null;        // yaw the view is swinging to, or null
 
 const cameraGoal = new THREE.Vector3();
 const lookAt = new THREE.Vector3();
@@ -233,11 +236,14 @@ function updateHud(dt) {
 
   if (!player.alive && !mourned) {
     mourned = true;
+    overGrace = MOURNING;
     audio.over();
   } else if (player.alive) {
     mourned = false;
   }
+  overGrace = Math.max(0, overGrace - dt);
   overPanel.classList.toggle('shown', !player.alive);
+  againButton.disabled = overGrace > 0;
   reticle.visible = player.alive;
 
   // The banner carries the breather: it names what is coming and disappears the
@@ -280,14 +286,23 @@ function collect(pickup) {
   return taken;
 }
 
+// Long enough that whatever you were doing when you died cannot carry through
+// into dismissing the panel. You throw by clicking, so without this the click
+// already in flight as Jerry goes down restarts the run before the words are
+// even on screen — which is exactly what it looked like from the outside: a
+// game that restarts itself without admitting it ended.
+const MOURNING = 1.4;
+let overGrace = 0;
+
 function restart() {
-  if (player.alive) return;
+  if (player.alive || overGrace > 0) return;
   player.reset();
   enemies.clear();
   projectiles.clear();
   pickups.reset();
   waves.reset();
   cameraYaw = PINNED_YAW;
+  recentreTo = null;
   camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
   lookAt.copy(player.group.position);
 }
@@ -320,9 +335,14 @@ function setPaused(on) {
 }
 
 addEventListener('keydown', event => {
+  // "Press any key to begin" has to mean any key, including the ones that do
+  // something else once the game is running.
+  if (!started) {
+    begin();
+    return;
+  }
   if (event.code === 'KeyR') restart();
   else if (event.code === 'KeyP') setPaused(!paused);
-  else if (!started) begin();
   else if (paused) setPaused(false);
 });
 
@@ -339,10 +359,14 @@ addEventListener('visibilitychange', () => {
 });
 
 // There is no R key on a phone, so the panel itself is the button.
-overPanel.addEventListener('pointerdown', event => {
+// Only the button restarts, not the whole overlay. The overlay covers the
+// screen, so making all of it a restart target meant every stray click was one.
+againButton.addEventListener('pointerdown', event => {
   event.preventDefault();
+  event.stopPropagation();
   restart();
 });
+overPanel.addEventListener('pointerdown', event => event.preventDefault());
 
 /* ------------------------------------------------------------------------ loop */
 
@@ -396,13 +420,39 @@ function frame() {
   // regardless of how often we tick.
   const ease = 1 - Math.pow(.0006, dt);
 
-  // Swing round behind Jerry when he is being aimed by stick, and hold the pinned
-  // view when he is being aimed by mouse. The swing is deliberately slower than
-  // his turn, so the camera trails the throw rather than whipping with it.
-  const wantedYaw = input.aimMode === 'direction' ? player.group.rotation.y : PINNED_YAW;
-  let swing = wantedYaw - cameraYaw;
-  swing = Math.atan2(Math.sin(swing), Math.cos(swing));
-  cameraYaw += swing * (1 - Math.pow(.06, dt));
+  // Under stick aim the view swings round behind Jerry on its own, slower than
+  // he turns so it trails the throw rather than whipping with it.
+  //
+  // Under mouse aim it cannot do that, and not for want of tuning. The cursor
+  // sits at a fixed *screen* angle from centre, so the world direction under it
+  // is (camera yaw + that angle). Rotate the camera to face it and the direction
+  // under the cursor moves by the same amount again — the view rotates forever
+  // at a rate set by how far off-centre the cursor is, and only a cursor exactly
+  // at the centre of the screen is stable. Any automatic follow here spins.
+  //
+  // So the view is driven instead: Q/E turn it, C swings it round behind Jerry.
+  // Both are inputs of their own, which is what breaks the loop.
+  if (input.aimMode === 'direction') {
+    let swing = player.group.rotation.y - cameraYaw;
+    swing = Math.atan2(Math.sin(swing), Math.cos(swing));
+    cameraYaw += swing * (1 - Math.pow(.06, dt));
+    recentreTo = null;
+  } else {
+    if (input.takeRecentre()) recentreTo = player.group.rotation.y;
+    if (input.camTurn) recentreTo = null;   // taking the wheel cancels the swing
+    cameraYaw += input.camTurn * CAMERA_TURN * dt;
+
+    if (recentreTo !== null) {
+      let swing = recentreTo - cameraYaw;
+      swing = Math.atan2(Math.sin(swing), Math.cos(swing));
+      if (Math.abs(swing) < .01) {
+        cameraYaw = recentreTo;
+        recentreTo = null;
+      } else {
+        cameraYaw += swing * (1 - Math.pow(.0005, dt));
+      }
+    }
+  }
 
   cameraGoal.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
   camera.position.lerp(cameraGoal, ease);

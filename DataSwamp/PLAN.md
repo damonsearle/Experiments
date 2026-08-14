@@ -107,6 +107,8 @@ went into the model. Over-the-shoulder would hide him and make swarms unreadable
 | Left click | Shoot |
 | `Space` | Jump |
 | `1`–`7` / scroll / tap a chip | Switch storage tier |
+| `Q` / `E` | Turn the view |
+| `C` | Swing the view round behind Jerry |
 | `Shift` | Dodge roll (brief i-frames) — stretch |
 | `P` | Pause |
 | Left stick | Run. Jerry turns to face the way he runs, and the camera follows him round |
@@ -318,6 +320,17 @@ them being reopened by accident later.
    screen intent — both sticks and `WASD` — against the camera's *current* yaw every frame, in
    `main.js`. `player.js` only ever receives a world direction and never learns which way round the
    view is.
+
+   > **Why mouse aim cannot have an automatic follow, however it is tuned.** The cursor sits at a
+   > fixed *screen* angle from centre, so the world direction under it is `camera yaw + that angle`.
+   > Rotate the camera towards it and the direction under the cursor moves by the same amount again.
+   > The view then turns forever, at a rate set by how far off-centre the cursor is, and the only
+   > stable cursor position is the exact centre of the screen. This is a property of the loop, not a
+   > damping value that has not been found yet — no easing, dead zone or lag removes it.
+   >
+   > So under mouse aim the view is *driven* instead: `Q`/`E` turn it and `C` swings it round behind
+   > Jerry. Both are inputs of their own, which is precisely what breaks the loop. The same loop is
+   > what killed the touch aim stick — see §4.1.
 2. **Aiming — mouse primary, twin-stick alongside it.** The mouse stays the precise, desktop-first
    scheme the pinpoint tiers (USB, SSD) are designed around. The twin-stick fallback was originally
    deferred to M6 and then **pulled forward and shipped after M3**, on the grounds that touch and

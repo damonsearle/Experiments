@@ -504,6 +504,29 @@ body.touching .by-tap { display: inline; }
   color: var(--bone-dim);
 }
 
+.again {
+  font: inherit;
+  font-size: .74rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--bone);
+  padding: .7rem 1.5rem;
+  border: 1px solid var(--amber);
+  border-radius: 3px;
+  background: rgba(210, 166, 63, .12);
+  cursor: pointer;
+  transition: opacity .3s ease, background .15s;
+}
+
+.again:hover:not(:disabled) { background: rgba(210, 166, 63, .26); }
+
+/* Dead for the first moment or so, so the click that was already on its way
+   when Jerry went down cannot restart the run. */
+.again:disabled {
+  opacity: .28;
+  cursor: default;
+}
+
 @media (max-width: 62rem) {
   .tier-name { display: none; }
 }

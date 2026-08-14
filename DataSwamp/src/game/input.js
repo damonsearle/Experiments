@@ -31,6 +31,8 @@ export function createInput(canvas) {
     aimMode: 'pointer',
     jumpQueued: false,
     firing: false,
+    camTurn: 0,             // -1 / 0 / +1 from the view keys
+    recentreQueued: false,  // swing the view round behind Jerry, once
     tierQueued: 0,                  // 1-based tier the player asked for, 0 for none
     cycleQueued: 0,                 // accumulated scroll steps
     // Written by the touch layer, read here. Kept separate so a stick and a
@@ -48,6 +50,7 @@ export function createInput(canvas) {
     KeyA: 'left', ArrowLeft: 'left',
     KeyD: 'right', ArrowRight: 'right',
     KeyI: 'aimUp', KeyK: 'aimDown', KeyJ: 'aimLeft', KeyL: 'aimRight',
+    KeyQ: 'camLeft', KeyE: 'camRight',
   };
 
   let mouseFiring = false;
@@ -57,6 +60,11 @@ export function createInput(canvas) {
       event.preventDefault();
       // Queued rather than held, so a jump is consumed once and never auto-repeats.
       input.jumpQueued = true;
+      return;
+    }
+    if (event.code === 'KeyC') {
+      event.preventDefault();
+      input.recentreQueued = true;
       return;
     }
     // Digit1..Digit4 rather than event.key, so the tier keys survive a layout
@@ -142,8 +150,15 @@ export function createInput(canvas) {
       input.aim.copy(input.move).normalize();
     }
 
+    input.camTurn = (held.has('camRight') ? 1 : 0) - (held.has('camLeft') ? 1 : 0);
     input.firing = mouseFiring || input.stick.firing;
     return input;
+  };
+
+  input.takeRecentre = () => {
+    const queued = input.recentreQueued;
+    input.recentreQueued = false;
+    return queued;
   };
 
   input.takeJump = () => {
