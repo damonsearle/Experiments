@@ -7,6 +7,7 @@ import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
 import { createPickups, HEALTH_AMOUNT } from './game/pickups.js';
 import { createDinoKit } from './creature/dinos.js';
+import { createTouch } from './ui/touch.js';
 import { ARSENAL } from './game/weapons.js';
 
 const canvas = document.querySelector('#game');
@@ -95,12 +96,26 @@ pip.rotation.x = -Math.PI / 2;
 reticle.add(pip);
 scene.add(reticle);
 
+// How far out a stick or IJKL aim puts the aim point. It only has to be far
+// enough that Jerry turns to face it and the reticle sits in front of him —
+// direction aiming has no distance of its own to honour.
+const AIM_REACH = 7;
+
 function updateAim() {
-  raycaster.setFromCamera(input.pointer, camera);
-  // A ray parallel to the ground never lands; keep the previous point when that happens.
-  if (raycaster.ray.intersectPlane(aimPlane, aimPoint)) {
-    reticle.position.set(aimPoint.x, .04, aimPoint.z);
+  if (input.aimMode === 'direction') {
+    // The camera holds a fixed yaw, so screen-up is world -z and a stick vector
+    // maps straight onto the ground plane with no projection needed.
+    aimPoint.set(
+      player.group.position.x + input.aim.x * AIM_REACH,
+      FLIGHT_Y,
+      player.group.position.z - input.aim.y * AIM_REACH,
+    );
+  } else {
+    raycaster.setFromCamera(input.pointer, camera);
+    // A ray parallel to the ground never lands; keep the previous point when that happens.
+    if (!raycaster.ray.intersectPlane(aimPlane, aimPoint)) return;
   }
+  reticle.position.set(aimPoint.x, .04, aimPoint.z);
 }
 
 /* ------------------------------------------------------------------------ loop */
@@ -157,9 +172,19 @@ const tierChips = ARSENAL.map((weapon, index) => {
   ammo.className = 'tier-ammo';
   item.append(ammo);
 
+  // Tapping a chip is the only way to swap tiers without a keyboard or a wheel,
+  // and it costs desktop nothing to have it too.
+  item.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    player.select(weapon);
+  });
+
   tierList.append(item);
   return { weapon, item, ammo };
 });
+
+createTouch(input, document.querySelector('#touch'));
 
 let sinceReadout = 0;
 let veil = 0;
@@ -203,8 +228,8 @@ function collect(pickup) {
   return player.give(pickup.weapon, pickup.weapon.magazine);
 }
 
-addEventListener('keydown', event => {
-  if (event.code !== 'KeyR' || player.alive) return;
+function restart() {
+  if (player.alive) return;
   player.reset();
   enemies.clear();
   projectiles.clear();
@@ -213,6 +238,16 @@ addEventListener('keydown', event => {
   restock = 0;
   camera.position.copy(player.group.position).add(CAMERA_OFFSET);
   lookAt.copy(player.group.position);
+}
+
+addEventListener('keydown', event => {
+  if (event.code === 'KeyR') restart();
+});
+
+// There is no R key on a phone, so the panel itself is the button.
+overPanel.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  restart();
 });
 
 /* ------------------------------------------------------------------------ loop */

@@ -10,6 +10,12 @@
     <canvas id="game" aria-label="Data Swamp game canvas"></canvas>
     <div id="hurt" aria-hidden="true"></div>
 
+    <div id="touch" aria-hidden="true">
+      <div class="stick" id="stick-move"><span class="knob"></span></div>
+      <div class="stick" id="stick-aim"><span class="knob"></span></div>
+      <button type="button" class="tap" id="tap-jump">Jump</button>
+    </div>
+
     <header class="chrome top">
       <p class="mark">Jerry vs the <em>Data Swamp</em></p>
       <p class="stage">Milestone 3 — the arsenal</p>
@@ -17,7 +23,11 @@
 
     <div id="over" role="status">
       <p class="verdict">Data loss</p>
-      <p class="hint">Jerry has been comprehensively overwritten. <kbd>R</kbd> to restore from backup.</p>
+      <p class="hint">
+        Jerry has been comprehensively overwritten.
+        <span class="by-key"><kbd>R</kbd> to restore from backup.</span>
+        <span class="by-tap">Tap to restore from backup.</span>
+      </p>
     </div>
 
     <footer class="chrome bottom">

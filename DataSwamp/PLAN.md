@@ -106,11 +106,22 @@ went into the model. Over-the-shoulder would hide him and make swarms unreadable
 | Mouse | Aim — Jerry turns to face the ground point under the cursor |
 | Left click | Shoot |
 | `Space` | Jump |
-| `1`–`7` / scroll | Switch storage tier |
+| `1`–`7` / scroll / tap a chip | Switch storage tier |
 | `Shift` | Dodge roll (brief i-frames) — stretch |
 | `P` | Pause |
+| Left half drag | Move — floating thumbstick |
+| Right half drag | Aim, and throw while held |
+| Jump pad | Jump |
 
-Keyboard-only fallback: arrows move, `IJKL` aims twin-stick style.
+Keyboard-only fallback: arrows move, `IJKL` aims twin-stick style. **Both this and
+the touch controls shipped after M3**, pulled forward out of M6 — they are the same
+problem (aiming without a mouse) and were cheaper to solve once, together, while the
+aim system was still small.
+
+Aim arrives in one of two shapes and the rest of the game must not care which: a mouse
+gives a *point* to resolve against the ground, a stick gives a *direction* and no point
+at all. `input.aimMode` says which is live and `main.js` resolves both to the same aim
+point, so the player and the reticle never learn there is more than one kind.
 
 ### 4.2 Movement and collision
 
@@ -224,7 +235,7 @@ Each milestone ends with something runnable. No milestone depends on art that do
 | **M3** | Arsenal | 4 storage tiers, switching, ammo pickups, HUD showing health/ammo/tier. **This is the first genuinely playable build.** |
 | **M4** | The swamp | Water, islands, jumpable obstacles, flora, ruins, fog, atmosphere pass. |
 | **M5** | Structure | Wave director, remaining species and weapons, T-Rex boss, start/game-over panels, audio. |
-| **M6** | Polish | Perf pass, touch controls, deploy as a second Pages entry. |
+| **M6** | Polish | Perf pass, and the shadow decision from §8. Touch controls and the Pages deploy both landed early — see §4.1 and §9.2. |
 
 ---
 
@@ -260,9 +271,11 @@ them being reopened by accident later.
 1. **Camera — 3/4 follow.** Settled at M0 and confirmed by playing M2: the fixed yaw keeps screen-up
    pinned to world -z so movement never inverts, and the whole of Jerry stays on screen.
    Over-the-shoulder is rejected — it would hide the model and make swarms unreadable.
-2. **Aiming — mouse only, for now.** Precise and desktop-first, and the pinpoint tiers (USB, SSD) are
-   designed around it. The twin-stick keyboard fallback in §4.1 is **deferred to M6**, where it gets
-   solved once alongside touch controls rather than twice.
+2. **Aiming — mouse primary, twin-stick alongside it.** The mouse stays the precise, desktop-first
+   scheme the pinpoint tiers (USB, SSD) are designed around. The twin-stick fallback was originally
+   deferred to M6 and then **pulled forward and shipped after M3**, on the grounds that touch and
+   `IJKL` are one problem, not two, and the aim system was at its smallest right then. What remains
+   of M6 is the perf pass.
 3. **Art direction — grubby and organic.** The HUD extends the existing mud/bone/tannin/amber chrome:
    serif title, hairline rules, and saturation reserved for projectiles and pickups so they stay the
    only loud things on screen. Data Dash's neon-brutalist HUD is rejected — it would compete with the

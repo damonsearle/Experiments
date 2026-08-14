@@ -1,16 +1,39 @@
 import * as THREE from 'three';
 
-// Keyboard state plus a normalised pointer, kept as plain state the game loop samples.
-// Nothing here knows about the world — main.js turns the pointer into an aim point.
+/* --------------------------------------------------------------------------
+   Keyboard, mouse and stick state, kept as plain fields the game loop samples.
+   Nothing here knows about the world — main.js turns whatever this reports into
+   an aim point.
+
+   Aim arrives in one of two shapes and the rest of the game must not care
+   which. A mouse gives a *point* on screen to resolve against the ground; a
+   thumbstick or IJKL gives a *direction* and no point at all. Rather than teach
+   the player and the reticle about both, `aimMode` says which one is live and
+   main.js resolves them to the same aim point.
+
+   The mode follows whatever was touched last, so a hybrid laptop that has both
+   a screen and a mouse does the right thing without being asked.
+   -------------------------------------------------------------------------- */
+
 export function createInput(canvas) {
   const held = new Set();
   const input = {
-    move: new THREE.Vector2(),   // -1..1 on x (right) and y (forward)
-    pointer: new THREE.Vector2(), // normalised device coords
+    move: new THREE.Vector2(),      // -1..1 on x (right) and y (forward)
+    pointer: new THREE.Vector2(),   // normalised device coords, mouse only
+    aim: new THREE.Vector2(1, 0),   // unit direction in the same screen axes as move
+    aimMode: 'pointer',
     jumpQueued: false,
     firing: false,
-    tierQueued: 0,    // 1-based tier the player asked for, 0 for none
-    cycleQueued: 0,   // accumulated scroll steps
+    tierQueued: 0,                  // 1-based tier the player asked for, 0 for none
+    cycleQueued: 0,                 // accumulated scroll steps
+    // Written by the touch layer, read here. Kept separate so a stick and a
+    // keyboard held at once resolve predictably instead of fighting.
+    stick: {
+      move: new THREE.Vector2(),
+      aim: new THREE.Vector2(),
+      firing: false,
+      active: false,
+    },
   };
 
   const CODES = {
@@ -18,7 +41,10 @@ export function createInput(canvas) {
     KeyS: 'down', ArrowDown: 'down',
     KeyA: 'left', ArrowLeft: 'left',
     KeyD: 'right', ArrowRight: 'right',
+    KeyI: 'aimUp', KeyK: 'aimDown', KeyJ: 'aimLeft', KeyL: 'aimRight',
   };
+
+  let mouseFiring = false;
 
   addEventListener('keydown', event => {
     if (event.code === 'Space') {
@@ -51,10 +77,13 @@ export function createInput(canvas) {
   // Losing focus mid-key would otherwise leave Jerry walking into the swamp forever.
   addEventListener('blur', () => {
     held.clear();
+    mouseFiring = false;
     input.firing = false;
   });
 
   canvas.addEventListener('pointermove', event => {
+    if (event.pointerType !== 'mouse') return;
+    input.aimMode = 'pointer';
     const bounds = canvas.getBoundingClientRect();
     input.pointer.set(
       ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
@@ -62,8 +91,15 @@ export function createInput(canvas) {
     );
   });
 
-  canvas.addEventListener('pointerdown', () => { input.firing = true; });
-  addEventListener('pointerup', () => { input.firing = false; });
+  // Only a mouse press fires from the canvas. On a touchscreen every stick drag
+  // starts as a canvas press, and treating those as trigger pulls would mean
+  // Jerry fires continuously the whole time he is walking.
+  canvas.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse') mouseFiring = true;
+  });
+  addEventListener('pointerup', event => {
+    if (!event.pointerType || event.pointerType === 'mouse') mouseFiring = false;
+  });
 
   // One step per gesture regardless of how much delta the device reports — a
   // trackpad flick otherwise cycles the whole arsenal several times over.
@@ -72,12 +108,35 @@ export function createInput(canvas) {
     input.cycleQueued += Math.sign(event.deltaY);
   }, { passive: false });
 
+  const keyAim = new THREE.Vector2();
+
   input.sample = () => {
     input.move.set(
       (held.has('right') ? 1 : 0) - (held.has('left') ? 1 : 0),
       (held.has('up') ? 1 : 0) - (held.has('down') ? 1 : 0),
     );
+    // A stick overrides the keys rather than summing with them, so a stray held
+    // key cannot drag Jerry off the direction a thumb is pointing.
+    if (input.stick.move.lengthSq() > 0) input.move.copy(input.stick.move);
     if (input.move.lengthSq() > 1) input.move.normalize();
+
+    keyAim.set(
+      (held.has('aimRight') ? 1 : 0) - (held.has('aimLeft') ? 1 : 0),
+      (held.has('aimUp') ? 1 : 0) - (held.has('aimDown') ? 1 : 0),
+    );
+
+    // Whichever aim source has something to say wins, and when both fall silent
+    // the last direction is held rather than snapping back — releasing the stick
+    // should stop Jerry turning, not spin him to face east.
+    if (input.stick.aim.lengthSq() > 0) {
+      input.aimMode = 'direction';
+      input.aim.copy(input.stick.aim).normalize();
+    } else if (keyAim.lengthSq() > 0) {
+      input.aimMode = 'direction';
+      input.aim.copy(keyAim).normalize();
+    }
+
+    input.firing = mouseFiring || input.stick.firing;
     return input;
   };
 
