@@ -303,6 +303,7 @@ function frame() {
   });
   enemies.update(dt, { camera, target: player, arena, projectiles });
   pickups.update(dt, player, collect);
+  arena.update(dt, player.group.position);
   updateHud(dt);
 
   // Placeholder wave behaviour: once the swamp is clear, another lot wanders in.

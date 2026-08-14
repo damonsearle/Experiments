@@ -170,7 +170,10 @@ export function createPlayer(scene) {
   // their top, which is what makes jumping worth doing.
   function collide(arena) {
     for (const obstacle of arena.obstacles) {
-      if (player.lift > obstacle.height) continue;
+      // Clear of the top and he is standing on it, not walking into it. The
+      // margin matters: at exactly the top height this would push him off the
+      // platform he is stood on, every frame.
+      if (player.lift >= obstacle.height - .02) continue;
       const dx = group.position.x - obstacle.x;
       const dz = group.position.z - obstacle.z;
       const reach = obstacle.radius + RADIUS;
@@ -267,10 +270,16 @@ export function createPlayer(scene) {
 
     player.liftVelocity -= GRAVITY * dt;
     player.lift += player.liftVelocity * dt;
-    if (player.lift <= 0) {
-      player.lift = 0;
+
+    // The floor is whatever platform he is over, so a boardwalk is something to
+    // stand on rather than only something to jump across.
+    const floor = arena.groundHeight(group.position.x, group.position.z);
+    if (player.lift <= floor) {
+      player.lift = floor;
       player.liftVelocity = 0;
       player.grounded = true;
+    } else {
+      player.grounded = false;
     }
     group.position.y = player.lift;
 

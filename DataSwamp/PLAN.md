@@ -180,7 +180,11 @@ A prehistoric swamp that is also, quietly, a data centre that lost.
   randomised scale and rotation.
 - **Ruins:** server racks half-sunk in the swamp, floating punch cards, cable vines, and a
   monolithic dead mainframe as the arena's centrepiece and hard cover.
-- **Atmosphere:** heavy fog, drifting spores, a volcano glowing on the horizon.
+- **Atmosphere:** heavy fog, drifting spores, and the volcano as a warm directional rim only.
+  ~~glowing on the horizon~~ — **not possible with this camera.** At ~31° down and a 45° field, the
+  visible band stops several degrees *below* the horizontal, so the sky and the horizon are never on
+  screen at any distance. A mountain tall enough to see is a mountain above the top of the frame.
+  The light it throws is the part that survives, and it was the part doing the work anyway.
 - **Palette:** mossy greens and tannin browns, deliberately desaturated, so the file-type projectiles
   and the tier-coloured pickups pop as the only saturated things on screen.
 
@@ -262,8 +266,12 @@ concurrent enemies and cull projectiles aggressively on leaving the arena.
 **Scope is the real risk.** 7 weapons × 7 species is 49 interactions to balance. Ship M3 with 4 and 3,
 play it, then expand. The tables above are a target, not a v1 commitment.
 
-**Shadows.** Data Dash uses a single 1024 shadow map. A populated arena will need either a tighter
-shadow camera fitted to the play area or cheap blob shadows under entities. Decide at M4.
+**Shadows — decided at M4: a tight shadow camera that travels with Jerry.** A 2048 map covering
+±15 units, with the light and its target moved together each frame so the sun direction never
+changes and only the covered area moves. Same memory as covering the whole arena, roughly six times
+the texel density where anyone is actually looking. Blob shadows were not needed. If M5's wave sizes
+push cost up again, the next lever is the map size, not the reach — shrinking the reach is what
+starts popping shadows in and out at the edge of the play area.
 
 ---
 
