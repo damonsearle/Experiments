@@ -1,18 +1,21 @@
 /* --------------------------------------------------------------------------
-   Touch controls: twin sticks and a jump pad.
+   Touch controls: one stick and two pads.
 
-   The sticks are always drawn once touch mode is on, parked at a home position
-   in each bottom corner with a label under them. An invisible control is not a
-   control — the first version only drew a stick once a thumb had already found
-   it, which meant you had to already know it was there.
+   The stick is always drawn once touch mode is on, parked in the bottom-left
+   corner with a label under it. An invisible control is not a control — the
+   first version only drew a stick once a thumb had already found it, which
+   meant you had to already know it was there.
 
-   They still float, though: on touch-down the base jumps to wherever the thumb
-   actually landed and slides home again on release. So the home position is an
-   advertisement for where the stick is, not a target you have to hit.
+   It still floats: on touch-down the base jumps to wherever the thumb actually
+   landed and slides home again on release. So the home position advertises
+   where the stick is rather than being a target you have to hit.
 
-   Left stick runs. Right stick turns and throws — holding it swings Jerry, and
-   the camera follows him round, so "point at it" and "throw at it" stay one
-   gesture and you can always see what you are pointing at.
+   Jerry aims where he runs, and the right hand is two buttons — throw and jump.
+   There was a second stick here that aimed, and it had a nasty feedback loop:
+   holding it turned Jerry, the camera followed him round, and so the same thumb
+   position kept on turning him. Dragging a little too far span you on the spot.
+   Steering with the left stick alone has none of that, and costs only the
+   ability to shoot behind yourself.
    -------------------------------------------------------------------------- */
 
 const RADIUS = 56;      // px from the stick origin that counts as full deflection
@@ -21,9 +24,9 @@ const DEAD = 5;         // px of slop before a drag registers at all
 export function createTouch(input, root) {
   const sticks = {
     move: { el: root.querySelector('#stick-move'), pointer: null, target: input.stick.move },
-    aim: { el: root.querySelector('#stick-aim'), pointer: null, target: input.stick.aim },
   };
   const jumpPad = root.querySelector('#tap-jump');
+  const firePad = root.querySelector('#tap-fire');
 
   for (const stick of Object.values(sticks)) {
     stick.knob = stick.el.querySelector('.knob');
@@ -31,6 +34,7 @@ export function createTouch(input, root) {
   }
 
   let shown = false;
+  let firing = null;      // pointerId currently holding the throw pad
 
   function home(stick) {
     // Parked position comes from CSS so the layout stays in one place; clearing
@@ -50,7 +54,8 @@ export function createTouch(input, root) {
     if (on) input.aimMode = 'direction';
     if (!on) {
       release(sticks.move);
-      release(sticks.aim);
+      input.stick.firing = false;
+      firing = null;
     }
   }
 
@@ -60,7 +65,6 @@ export function createTouch(input, root) {
     stick.target.set(0, 0);
     stick.el.classList.remove('live');
     home(stick);
-    if (stick === sticks.aim) input.stick.firing = false;
   }
 
   function grab(stick, event) {
@@ -86,8 +90,6 @@ export function createTouch(input, root) {
     if (distance < DEAD) {
       stick.target.set(0, 0);
       stick.knob.style.transform = '';
-      // An aim thumb resting still is still aiming, so it keeps throwing.
-      if (stick === sticks.aim) input.stick.firing = true;
       return;
     }
 
@@ -100,7 +102,6 @@ export function createTouch(input, root) {
 
     // Screen y grows downward and the game's forward axis grows upward.
     stick.target.set(nx * (clamped / RADIUS), -ny * (clamped / RADIUS));
-    if (stick === sticks.aim) input.stick.firing = true;
   }
 
   // The sticks listen on the window rather than on the overlay. The overlay is
@@ -117,21 +118,26 @@ export function createTouch(input, root) {
     }
     show(true);
 
-    const stick = event.clientX < innerWidth / 2 ? sticks.move : sticks.aim;
-    if (stick.pointer !== null) return;   // that thumb is already busy
-    grab(stick, event);
+    // Only the left half drives the stick now; the right half is buttons, and
+    // they claim their own taps below.
+    if (event.clientX >= innerWidth / 2) return;
+    if (sticks.move.pointer !== null) return;   // that thumb is already busy
+    grab(sticks.move, event);
   });
 
   addEventListener('pointermove', event => {
-    for (const stick of Object.values(sticks)) {
-      if (stick.pointer === event.pointerId) drag(stick, event);
-    }
+    if (sticks.move.pointer === event.pointerId) drag(sticks.move, event);
   });
 
   for (const type of ['pointerup', 'pointercancel']) {
     addEventListener(type, event => {
-      for (const stick of Object.values(sticks)) {
-        if (stick.pointer === event.pointerId) release(stick);
+      if (sticks.move.pointer === event.pointerId) release(sticks.move);
+      // Released anywhere, not just over the pad — sliding off the button while
+      // holding it should still count as letting go.
+      if (firing === event.pointerId) {
+        firing = null;
+        input.stick.firing = false;
+        firePad.classList.remove('held');
       }
     });
   }
@@ -141,6 +147,15 @@ export function createTouch(input, root) {
     event.stopPropagation();
     show(true);
     input.jumpQueued = true;
+  });
+
+  firePad.addEventListener('pointerdown', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    show(true);
+    firing = event.pointerId;
+    input.stick.firing = true;
+    firePad.classList.add('held');
   });
 
   show(matchMedia('(pointer: coarse)').matches);

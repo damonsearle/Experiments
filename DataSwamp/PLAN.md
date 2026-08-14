@@ -109,13 +109,20 @@ went into the model. Over-the-shoulder would hide him and make swarms unreadable
 | `1`–`7` / scroll / tap a chip | Switch storage tier |
 | `Shift` | Dodge roll (brief i-frames) — stretch |
 | `P` | Pause |
-| Left stick | Run. With no thumb on the right stick, Jerry turns to face the way he runs |
-| Right stick | Turn, and throw while held |
+| Left stick | Run. Jerry turns to face the way he runs, and the camera follows him round |
+| Throw pad | Throw while held |
 | Jump pad | Jump |
 
-Both sticks are drawn permanently in the bottom corners with labels, and slide to meet
-the thumb on contact. The home position advertises where the control is; it is not a
-target you have to hit.
+The stick is drawn permanently in the bottom-left with a label, and slides to meet the
+thumb on contact — the home position advertises where the control is rather than being
+a target you have to hit.
+
+> **There was a second stick here that aimed, and it had to go.** Holding it turned Jerry,
+> the camera followed him round, and so the same thumb position kept on turning him:
+> dragging a little too far span you on the spot. Steering with the left stick alone has
+> none of that, and costs only the ability to shoot behind yourself. Aiming and throwing
+> are separate on a keyboard, where there are thumbs to spare; on touch, running *is*
+> aiming.
 
 Keyboard-only fallback: arrows move, `IJKL` aims twin-stick style. **Both this and
 the touch controls shipped after M3**, pulled forward out of M6 — they are the same

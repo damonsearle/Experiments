@@ -34,12 +34,11 @@ export function createInput(canvas) {
     tierQueued: 0,                  // 1-based tier the player asked for, 0 for none
     cycleQueued: 0,                 // accumulated scroll steps
     // Written by the touch layer, read here. Kept separate so a stick and a
-    // keyboard held at once resolve predictably instead of fighting.
+    // keyboard held at once resolve predictably instead of fighting. There is
+    // no aim stick: touch steers with `move` alone and throws with a button.
     stick: {
       move: new THREE.Vector2(),
-      aim: new THREE.Vector2(),
       firing: false,
-      active: false,
     },
   };
 
@@ -132,18 +131,11 @@ export function createInput(canvas) {
       (held.has('aimUp') ? 1 : 0) - (held.has('aimDown') ? 1 : 0),
     );
 
-    // Whichever aim source has something to say wins, and when they all fall
-    // silent the last direction is held rather than snapping back — releasing
-    // the stick should stop Jerry turning, not spin him to face east.
-    //
-    // Running is the last of those sources: with no thumb on the aim stick,
-    // Jerry faces the way he is running and the camera comes round with him.
-    // That is what makes "turn and run" work as one stick instead of demanding
-    // both at once just to go somewhere and look at it.
-    if (input.stick.aim.lengthSq() > 0) {
-      input.aimMode = 'direction';
-      input.aim.copy(input.stick.aim).normalize();
-    } else if (keyAim.lengthSq() > 0) {
+    // IJKL still aims explicitly, because a keyboard has thumbs to spare. Touch
+    // does not: there, running *is* aiming, and when both fall silent the last
+    // direction is held rather than snapping back — stopping should stop Jerry
+    // turning, not spin him to face east.
+    if (keyAim.lengthSq() > 0) {
       input.aimMode = 'direction';
       input.aim.copy(keyAim).normalize();
     } else if (input.aimMode === 'direction' && input.move.lengthSq() > 0) {
