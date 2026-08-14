@@ -6,8 +6,10 @@ import { createInput } from './game/input.js';
 import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
 import { createPickups, HEALTH_AMOUNT } from './game/pickups.js';
+import { createWaves } from './game/waves.js';
 import { createDinoKit } from './creature/dinos.js';
 import { createTouch } from './ui/touch.js';
+import { createAudio } from './audio.js';
 import { ARSENAL } from './game/weapons.js';
 
 const canvas = document.querySelector('#game');
@@ -15,6 +17,8 @@ const readout = document.querySelector('#readout');
 const healthFill = document.querySelector('#health-fill');
 const hurtVeil = document.querySelector('#hurt');
 const overPanel = document.querySelector('#over');
+const startPanel = document.querySelector('#start');
+const bannerPanel = document.querySelector('#banner');
 const tierList = document.querySelector('#tiers');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -36,25 +40,14 @@ const projectiles = createProjectiles(scene);
 const dinoKit = createDinoKit();
 const enemies = createEnemies(scene, dinoKit);
 
-// A fixed encounter until the wave director arrives at M5. The mix is chosen to
-// show all three behaviours at once: compies rush, dilos hold the middle, the
-// stego stands off and lobs.
-const ENCOUNTER = [
-  ['compy', 7, -8], ['compy', 10, -5], ['compy', 4, -12],
-  ['dilo', -9, -7], ['dilo', 12, 4],
-  ['stego', -3, -15],
-];
-
-function populate() {
-  for (const [species, x, z] of ENCOUNTER) enemies.spawn(species, x, z);
-}
-populate();
-
 const pickups = createPickups(scene);
+const waves = createWaves(enemies, arena);
+const audio = createAudio();
+waves.reset();
 
-// Placeholder for the wave director at M5. Without it a cleared arena leaves
-// nothing to do, and M3 is meant to be the build you can actually sit and play.
-let restock = 0;
+// Nothing spawns until the player dismisses the opening panel, so there is time
+// to look at the swamp and find out what the sticks do before anything arrives.
+let started = false;
 
 /* ---------------------------------------------------------------------- camera */
 
@@ -216,6 +209,8 @@ createTouch(input, document.querySelector('#touch'));
 
 let sinceReadout = 0;
 let veil = 0;
+let mourned = false;      // so the death sting plays once, not every frame
+let announced = '';       // ditto the wave sting
 
 function updateHud(dt) {
   // The hurt flash is raised by player.hurt() and drained here, so the damage
@@ -227,8 +222,25 @@ function updateHud(dt) {
   veil = Math.max(0, veil - dt * 3.2);
   hurtVeil.style.opacity = veil.toFixed(3);
 
+  if (!player.alive && !mourned) {
+    mourned = true;
+    audio.over();
+  } else if (player.alive) {
+    mourned = false;
+  }
   overPanel.classList.toggle('shown', !player.alive);
   reticle.visible = player.alive;
+
+  // The banner carries the breather: it names what is coming and disappears the
+  // moment it arrives, so it is never covering the fight it announced.
+  const showBanner = started && player.alive && waves.state.banner &&
+    (waves.state.phase === 'breather' || waves.state.cleared);
+  bannerPanel.classList.toggle('shown', Boolean(showBanner));
+  if (showBanner && announced !== waves.state.banner) {
+    announced = waves.state.banner;
+    bannerPanel.textContent = waves.state.banner;
+    audio.wave();
+  }
 
   sinceReadout += dt;
   if (sinceReadout < .12) return;
@@ -252,8 +264,11 @@ function updateHud(dt) {
 // Returning false leaves the cache standing, so walking over coffee at full
 // integrity does not waste it.
 function collect(pickup) {
-  if (pickup.kind === 'health') return player.heal(HEALTH_AMOUNT);
-  return player.give(pickup.weapon, pickup.weapon.magazine);
+  const taken = pickup.kind === 'health'
+    ? player.heal(HEALTH_AMOUNT)
+    : player.give(pickup.weapon, pickup.weapon.magazine);
+  if (taken) audio.pickup();
+  return taken;
 }
 
 function restart() {
@@ -262,15 +277,30 @@ function restart() {
   enemies.clear();
   projectiles.clear();
   pickups.reset();
-  populate();
-  restock = 0;
+  waves.reset();
   cameraYaw = PINNED_YAW;
   camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
   lookAt.copy(player.group.position);
 }
 
+function begin() {
+  if (started) return;
+  started = true;
+  startPanel.classList.remove('shown');
+  // The gesture that dismissed the panel is the one that lets mobile browsers
+  // start an AudioContext at all, so this is the only place it can happen.
+  audio.unlock();
+}
+
+startPanel.classList.add('shown');
+startPanel.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  begin();
+});
+
 addEventListener('keydown', event => {
   if (event.code === 'KeyR') restart();
+  else begin();
 });
 
 // There is no R key on a phone, so the panel itself is the button.
@@ -294,28 +324,31 @@ function frame() {
   // which way round the view is.
   toWorld(input.move.x, input.move.y, input.worldMove);
   player.update(dt, input, aimPoint, arena);
-  player.shoot(dt, input, projectiles);
+  if (player.shoot(dt, input, projectiles)) audio.throw();
   projectiles.update(dt, {
     hostiles: enemies.list,
     player,
-    hit: enemies.damage,
-    hurtPlayer: player.hurt,
+    hit(target, amount, x, z) {
+      const wasAlive = target.alive;
+      enemies.damage(target, amount, x, z);
+      if (wasAlive && !target.alive) audio.kill();
+      else audio.hit();
+    },
+    hurtPlayer(amount) {
+      if (player.hurt(amount)) audio.hurt();
+    },
   });
-  enemies.update(dt, { camera, target: player, arena, projectiles });
+  enemies.update(dt, {
+    camera,
+    target: player,
+    arena,
+    projectiles,
+    hurt: amount => { if (player.hurt(amount)) audio.hurt(); },
+  });
   pickups.update(dt, player, collect);
   arena.update(dt, player.group.position);
+  if (started && player.alive) waves.update(dt);
   updateHud(dt);
-
-  // Placeholder wave behaviour: once the swamp is clear, another lot wanders in.
-  if (player.alive && enemies.list.length === 0) {
-    restock += dt;
-    if (restock > 4) {
-      restock = 0;
-      populate();
-    }
-  } else {
-    restock = 0;
-  }
 
   // Frame-rate independent easing: the same fraction of the gap closes per second
   // regardless of how often we tick.

@@ -290,12 +290,336 @@ function makeStego(parts, materials) {
   return { group, body, head, tail, legs, muzzle: [.32, -.05, 0] };
 }
 
+/* --------------------------------------------------------------- Pteranodon */
+// .PDF. Flies, so it ignores the platforms entirely and drops its shots from
+// above where a jump cannot clear them. The legs are vestigial on purpose —
+// this one is read against the sky, not the mud.
+
+function buildPtero() {
+  const hide = scales({ base: '#9a7f63', spot: '#4a3524', glow: '#d8c19c', seed: 41 });
+  return {
+    hide,
+    torso: paint(blob([
+      { at: [-.22, 0, 0], size: [.20, .18, .18] },
+      { at: [.02, .02, 0], size: [.24, .22, .22] },
+      { at: [.24, .08, 0], size: [.16, .16, .15] },
+      { at: [.38, .22, 0], size: [.10, .14, .10] },
+    ], SHELL), bellyTone(.3)),
+    head: paint(blob([
+      { at: [0, 0, 0], size: [.13, .13, .12] },
+      { at: [.22, -.04, 0], size: [.22, .07, .07] },   // long beak
+      { at: [.44, -.06, 0], size: [.14, .04, .05] },
+      { at: [-.14, .12, 0], size: [.18, .13, .04] },   // backward head crest
+    ], SHELL), bellyTone(.22, .25)),
+    tail: paint(blob([
+      { at: [0, 0, 0], size: [.12, .12, .12] },
+      { at: [-.22, .03, 0], size: [.06, .06, .06] },
+    ], SHELL), bellyTone(.2)),
+    leg: paint(blob([
+      { at: [0, -.06, 0], size: [.08, .12, .08] },
+      { at: [.03, -.24, 0], size: [.05, .09, .05] },
+    ], SHELL), bellyTone(.16)),
+  };
+}
+
+function makePtero(parts, materials) {
+  const group = new THREE.Group();
+
+  const body = new THREE.Group();
+  body.position.y = 2.6;      // cruising height; enemies.js holds it there
+  group.add(body);
+  addMesh(body, parts.torso, materials.body);
+
+  const tail = new THREE.Group();
+  tail.position.set(-.34, .02, 0);
+  body.add(tail);
+  addMesh(tail, parts.tail, materials.limb);
+
+  const head = new THREE.Group();
+  head.position.set(.46, .30, 0);
+  head.rotation.z = -.2;
+  body.add(head);
+  addMesh(head, parts.head, materials.limb);
+  for (const z of [-.09, .09]) {
+    addMesh(head, BEAD, materials.eye, [.06, .04, z], [0, 0, 0], [.032, .032, .032]);
+  }
+
+  // Wings are the animated pair, so they go in `legs` — enemies.js swings that
+  // list on a walk cycle and a wingbeat is the same motion at a different scale.
+  const legs = [];
+  for (const z of [-.18, .18]) {
+    const wing = new THREE.Group();
+    wing.position.set(0, .1, z);
+    body.add(wing);
+    addMesh(wing, FIN, materials.crest, [-.05, 0, Math.sign(z) * .55], [0, 0, 0], [.42, .035, .62]);
+    addMesh(wing, FIN, materials.crest, [-.2, 0, Math.sign(z) * 1.05], [0, .2 * Math.sign(z), 0], [.26, .03, .42]);
+    legs.push(wing);
+  }
+
+  for (const z of [-.09, .09]) {
+    const leg = new THREE.Group();
+    leg.position.set(-.06, -.16, z);
+    body.add(leg);
+    addMesh(leg, parts.leg, materials.limb);
+  }
+
+  return { group, body, head, tail, legs, muzzle: [.56, -.06, 0] };
+}
+
+/* -------------------------------------------------------------- Triceratops */
+// .ZIP. Charges. Everything about the silhouette is front-loaded — the frill
+// and the horns have to read as a threat from across the arena.
+
+function buildTrike() {
+  const hide = scales({ base: '#8d6a53', spot: '#3d2718', glow: '#cfa982', seed: 63 });
+  return {
+    hide,
+    torso: paint(blob([
+      { at: [-.46, .02, 0], size: [.36, .34, .36] },
+      { at: [-.10, .08, 0], size: [.44, .42, .44] },
+      { at: [.28, .04, 0], size: [.42, .40, .44] },
+      { at: [.64, -.02, 0], size: [.28, .30, .32] },
+    ], SHELL), bellyTone(.48)),
+    head: paint(blob([
+      { at: [0, .02, 0], size: [.26, .24, .26] },
+      { at: [.26, -.06, 0], size: [.22, .14, .16] },   // beak
+      { at: [.42, -.10, 0], size: [.12, .08, .09] },
+    ], SHELL), bellyTone(.24, .25)),
+    tail: paint(blob([
+      { at: [0, 0, 0], size: [.26, .25, .25] },
+      { at: [-.30, .04, 0], size: [.17, .17, .17] },
+      { at: [-.56, .09, 0], size: [.09, .09, .09] },
+    ], SHELL), bellyTone(.36)),
+    leg: paint(blob([
+      { at: [0, -.08, 0], size: [.20, .22, .20] },
+      { at: [.02, -.34, 0], size: [.16, .18, .16] },
+      { at: [.05, -.54, 0], size: [.14, .10, .15] },
+    ], SHELL), bellyTone(.26)),
+  };
+}
+
+function makeTrike(parts, materials) {
+  const group = new THREE.Group();
+
+  const body = new THREE.Group();
+  body.position.y = .88;
+  group.add(body);
+  addMesh(body, parts.torso, materials.body);
+
+  const tail = new THREE.Group();
+  tail.position.set(-.72, .04, 0);
+  tail.rotation.z = .18;
+  body.add(tail);
+  addMesh(tail, parts.tail, materials.limb);
+
+  const head = new THREE.Group();
+  head.position.set(.86, -.06, 0);
+  head.rotation.z = -.08;
+  body.add(head);
+  addMesh(head, parts.head, materials.limb);
+
+  // The frill: one broad flattened dome behind the skull, scalloped by a ring
+  // of smaller ones so the edge does not read as a dinner plate.
+  addMesh(head, FIN, materials.crest, [-.16, .12, 0], [0, 0, .35], [.30, .46, .48]);
+  for (let i = 0; i < 7; i++) {
+    const t = (i / 6 - .5) * 2;
+    addMesh(head, FIN, materials.crest, [-.22, .12 + t * .3, t * .34], [0, 0, .35], [.16, .1, .1]);
+  }
+
+  // Two brow horns and a nose horn.
+  for (const z of [-.14, .14]) {
+    addMesh(head, SPIKE, materials.crest, [.22, .26, z], [0, 0, -.55], [.055, .38, .055]);
+    addMesh(head, BEAD, materials.eye, [.16, .02, z * 1.3], [0, 0, 0], [.04, .04, .04]);
+  }
+  addMesh(head, SPIKE, materials.crest, [.40, .06, 0], [0, 0, -.3], [.05, .22, .05]);
+
+  const legs = [];
+  for (const [x, y, z, scale] of [
+    [.46, -.34, -.30, .82], [.46, -.34, .30, .82],
+    [-.44, -.22, .32, 1], [-.44, -.22, -.32, 1],
+  ]) {
+    const leg = new THREE.Group();
+    leg.position.set(x, y, z);
+    leg.scale.setScalar(scale);
+    body.add(leg);
+    addMesh(leg, parts.leg, materials.limb);
+    legs.push(leg);
+  }
+
+  return { group, body, head, tail, legs, muzzle: [.50, -.10, 0] };
+}
+
+/* ------------------------------------------------------------ Ankylosaurus */
+// .ISO. Low, wide, armoured, and it rolls at you. Built close to the ground so
+// the silhouette reads as something you cannot simply walk around.
+
+function buildAnky() {
+  const hide = scales({ base: '#6f6a4a', spot: '#2f2a18', glow: '#b3ab84', seed: 77 });
+  return {
+    hide,
+    torso: paint(blob([
+      { at: [-.44, 0, 0], size: [.40, .30, .42] },
+      { at: [-.06, .06, 0], size: [.52, .36, .54] },
+      { at: [.32, .02, 0], size: [.44, .32, .46] },
+      { at: [.66, -.04, 0], size: [.26, .24, .28] },
+    ], SHELL), bellyTone(.5)),
+    head: paint(blob([
+      { at: [0, 0, 0], size: [.22, .18, .24] },
+      { at: [.20, -.03, 0], size: [.18, .13, .18] },
+    ], SHELL), bellyTone(.22, .25)),
+    tail: paint(blob([
+      { at: [0, 0, 0], size: [.24, .22, .24] },
+      { at: [-.30, .02, 0], size: [.16, .15, .16] },
+      { at: [-.56, .04, 0], size: [.11, .11, .11] },
+      { at: [-.76, .06, 0], size: [.19, .18, .19] },   // the club
+    ], SHELL), bellyTone(.38)),
+    leg: paint(blob([
+      { at: [0, -.06, 0], size: [.19, .17, .19] },
+      { at: [.02, -.26, 0], size: [.16, .14, .16] },
+      { at: [.04, -.40, 0], size: [.15, .08, .16] },
+    ], SHELL), bellyTone(.26)),
+  };
+}
+
+function makeAnky(parts, materials) {
+  const group = new THREE.Group();
+
+  const body = new THREE.Group();
+  body.position.y = .72;
+  group.add(body);
+  addMesh(body, parts.torso, materials.body);
+
+  // Armour: rows of low plates across the back, plus spikes down each flank.
+  for (let row = 0; row < 5; row++) {
+    const x = .5 - row * .28;
+    const width = .34 + Math.sin((row / 4) * Math.PI) * .16;
+    addMesh(body, FIN, materials.crest, [x, .30, 0], [0, 0, 0], [.13, .09, width]);
+    for (const side of [-1, 1]) {
+      addMesh(body, SPIKE, materials.crest, [x, .12, side * (width + .12)], [0, 0, -side * 1.3], [.05, .2, .05]);
+    }
+  }
+
+  const tail = new THREE.Group();
+  tail.position.set(-.76, .02, 0);
+  body.add(tail);
+  addMesh(tail, parts.tail, materials.limb);
+
+  const head = new THREE.Group();
+  head.position.set(.86, -.10, 0);
+  body.add(head);
+  addMesh(head, parts.head, materials.limb);
+  for (const z of [-.13, .13]) {
+    addMesh(head, BEAD, materials.eye, [.14, .04, z], [0, 0, 0], [.036, .036, .036]);
+    addMesh(head, SPIKE, materials.crest, [-.06, .10, z * 1.2], [0, 0, -Math.sign(z) * 1.1], [.05, .16, .05]);
+  }
+
+  const legs = [];
+  for (const [x, z] of [[.40, -.36], [.40, .36], [-.40, .38], [-.40, -.38]]) {
+    const leg = new THREE.Group();
+    leg.position.set(x, -.18, z);
+    body.add(leg);
+    addMesh(leg, parts.leg, materials.limb);
+    legs.push(leg);
+  }
+
+  return { group, body, head, tail, legs, muzzle: [.34, -.04, 0] };
+}
+
+/* ------------------------------------------------------------------- T-Rex */
+// .SQL. The boss. Same theropod skeleton as the Dilophosaurus, scaled up and
+// given a skull that is mostly jaw.
+
+function buildRex() {
+  const hide = scales({ base: '#6b5340', spot: '#2a1c12', glow: '#b39070', seed: 5 });
+  return {
+    hide,
+    torso: paint(blob([
+      { at: [-.52, .06, 0], size: [.36, .40, .36] },
+      { at: [-.10, 0, 0], size: [.42, .48, .44] },
+      { at: [.32, .10, 0], size: [.44, .50, .46] },
+      { at: [.68, .28, 0], size: [.30, .38, .34] },
+      { at: [.92, .62, 0], size: [.19, .28, .21] },
+      { at: [1.04, .98, 0], size: [.16, .26, .18] },
+    ], SHELL), bellyTone(.5)),
+    head: paint(blob([
+      { at: [0, 0, 0], size: [.28, .26, .25] },
+      { at: [.30, -.04, 0], size: [.32, .19, .21] },
+      { at: [.58, -.08, 0], size: [.18, .13, .15] },
+      { at: [.28, -.20, 0], size: [.30, .09, .19] },
+    ], SHELL), bellyTone(.3, .25)),
+    tail: paint(blob([
+      { at: [0, 0, 0], size: [.32, .34, .32] },
+      { at: [-.46, .06, 0], size: [.23, .24, .23] },
+      { at: [-.88, .14, 0], size: [.14, .14, .14] },
+      { at: [-1.24, .24, 0], size: [.07, .07, .07] },
+    ], SHELL), bellyTone(.4)),
+    leg: paint(blob([
+      { at: [0, -.08, 0], size: [.30, .34, .29] },
+      { at: [.20, -.46, 0], size: [.19, .23, .19] },
+      { at: [.03, -.86, 0], size: [.13, .18, .13] },
+      { at: [.24, -1.08, 0], size: [.20, .08, .18] },
+    ], SHELL), bellyTone(.3)),
+  };
+}
+
+function makeRex(parts, materials) {
+  const group = new THREE.Group();
+  // Scaled at the root rather than in the mass list. Built to the same
+  // proportions as the Dilophosaurus it shares a skeleton with, it came out
+  // barely taller than Jerry, which is not what eight hundred hit points should
+  // look like walking towards you.
+  group.scale.setScalar(1.35);
+
+  const body = new THREE.Group();
+  body.position.y = 1.46;
+  group.add(body);
+  addMesh(body, parts.torso, materials.body);
+
+  const tail = new THREE.Group();
+  tail.position.set(-.66, .06, 0);
+  tail.rotation.z = .1;
+  body.add(tail);
+  addMesh(tail, parts.tail, materials.limb);
+
+  const head = new THREE.Group();
+  head.position.set(1.16, 1.14, 0);
+  head.rotation.z = -.18;
+  body.add(head);
+  addMesh(head, parts.head, materials.limb);
+  for (const z of [-.17, .17]) {
+    addMesh(head, BEAD, materials.eye, [.16, .10, z], [0, 0, 0], [.05, .05, .05]);
+    addMesh(head, FIN, materials.crest, [.06, .20, z * .8], [0, 0, .3], [.16, .07, .03]);
+  }
+  // A row of teeth along the jaw line, because at boss scale you can see them.
+  for (let i = 0; i < 6; i++) {
+    const x = .16 + i * .11;
+    for (const z of [-.13, .13]) {
+      addMesh(head, SPIKE, materials.tooth, [x, -.20, z], [0, 0, Math.PI], [.026, .09, .026]);
+    }
+  }
+
+  const legs = [];
+  for (const z of [-.28, .28]) {
+    const leg = new THREE.Group();
+    leg.position.set(-.16, -.24, z);
+    body.add(leg);
+    addMesh(leg, parts.leg, materials.limb);
+    legs.push(leg);
+  }
+
+  return { group, body, head, tail, legs, muzzle: [.68, -.14, 0] };
+}
+
 /* ------------------------------------------------------------------- the kit */
 
 const BUILDERS = {
   compy: { build: buildCompy, make: makeCompy, crest: 0x4d5a2c },
   dilo: { build: buildDilo, make: makeDilo, crest: 0xb4452f },
   stego: { build: buildStego, make: makeStego, crest: 0x6d5330 },
+  ptero: { build: buildPtero, make: makePtero, crest: 0x7a5f45 },
+  trike: { build: buildTrike, make: makeTrike, crest: 0x59392a },
+  anky: { build: buildAnky, make: makeAnky, crest: 0x4c4630 },
+  rex: { build: buildRex, make: makeRex, crest: 0x3b2a1c },
 };
 
 // Call once, at boot. Every blob() in the file runs here and nowhere else.
@@ -309,6 +633,7 @@ export function createDinoKit() {
       limb: hideMaterial(parts.hide, [1.4, 1.1]),
       eye: new THREE.MeshStandardMaterial({ color: 0x140d07, roughness: .3 }),
       crest: new THREE.MeshStandardMaterial({ color: entry.crest, roughness: .6 }),
+      tooth: new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: .45 }),
     };
 
     kit[id] = {
@@ -321,6 +646,7 @@ export function createDinoKit() {
           limb: prototypeMaterials.limb.clone(),
           eye: prototypeMaterials.eye,
           crest: prototypeMaterials.crest.clone(),
+          tooth: prototypeMaterials.tooth,
         };
         const rig = entry.make(parts, materials);
         rig.skins = [materials.body, materials.limb, materials.crest];

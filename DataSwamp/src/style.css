@@ -246,6 +246,13 @@ kbd,
 body.touching .keys,
 body.touching .readout { display: none; }
 
+/* The footer competes with the opening panel for attention and loses; hide it
+   until the swamp is actually the thing being looked at. */
+body:has(#start.shown) .chrome,
+body:has(#start.shown) #touch { opacity: 0; }
+
+.chrome, #touch { transition: opacity .35s ease; }
+
 /* --------------------------------------------------------- storage selector */
 
 .tiers {
@@ -361,6 +368,32 @@ body.touching .readout { display: none; }
   background: radial-gradient(ellipse at center, transparent 38%, rgba(150, 38, 26, .68) 100%);
 }
 
+/* --------------------------------------------------------- wave banner */
+
+#banner {
+  position: fixed;
+  z-index: 15;
+  top: 22%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  font-family: var(--serif);
+  font-size: clamp(1.3rem, 4vw, 2.1rem);
+  font-style: italic;
+  letter-spacing: .02em;
+  color: var(--bone);
+  text-shadow: 0 2px 18px rgba(14, 21, 18, .9);
+  transition: opacity .4s ease;
+}
+
+#banner.shown { opacity: 1; }
+
+/* -------------------------------------------------------------- panels */
+
+#start,
 #over {
   position: fixed;
   inset: 0;
@@ -378,11 +411,54 @@ body.touching .readout { display: none; }
   transition: opacity .5s ease;
 }
 
+#start.shown,
 #over.shown {
   opacity: 1;
   visibility: visible;
-  /* Only accepts the tap that restarts once it is actually up. */
+  /* Only accepts the tap that dismisses it once it is actually up. */
   pointer-events: auto;
+}
+
+#start {
+  gap: 1.1rem;
+  padding: 2rem 1.4rem;
+  background: rgba(14, 21, 18, .82);
+}
+
+/* Outruns .verdict, which is defined later and would otherwise paint the title
+   the same red as the death screen. */
+#start .start-title {
+  font-style: normal;
+  color: var(--bone);
+  font-size: clamp(1.6rem, 6vw, 3rem);
+}
+
+#start .start-title em {
+  font-style: italic;
+  color: var(--amber);
+}
+
+.blurb {
+  margin: 0;
+  max-width: 34rem;
+  font-family: var(--serif);
+  font-size: clamp(.85rem, 2.4vw, 1.02rem);
+  line-height: 1.55;
+  color: var(--bone-dim);
+}
+
+.brief {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: .45rem;
+  max-width: 34rem;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  color: var(--bone-dim);
 }
 
 .by-tap { display: none; }

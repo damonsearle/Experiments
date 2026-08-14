@@ -34,6 +34,37 @@ const SPECIES = {
     cooldown: 3.2, telegraph: .95, burst: 1, spread: 0,
     format: 'xls', gait: 3.4, rear: .12, bar: 2.1, glow: .14,
   },
+  // Flies. `fly` holds it at a cruising height, and flying means it ignores the
+  // platforms entirely and drops shots a jump cannot clear.
+  ptero: {
+    hp: 70, radius: .85, speed: 4.6, range: 11, band: 3.5,
+    cooldown: 2.6, telegraph: .55, burst: 1, spread: 0,
+    format: 'pdf', gait: 7, rear: .1, bar: 3.6, glow: .11, fly: true,
+  },
+  // Charges. Swaps strafing for a windup and a run, so the answer to it is
+  // movement rather than more damage.
+  trike: {
+    hp: 160, radius: 1.1, speed: 2.6, range: 9, band: 3,
+    cooldown: 3.4, telegraph: .8, burst: 1, spread: 0,
+    format: 'zip', gait: 3.6, rear: .14, bar: 2.3, glow: .15,
+    charge: { windup: .9, speed: 13, time: 1.1, damage: 22, cooldown: 4.5, from: 11 },
+  },
+  anky: {
+    hp: 240, radius: 1.2, speed: 2, range: 11, band: 3.5,
+    cooldown: 4, telegraph: 1, burst: 1, spread: 0,
+    format: 'iso', gait: 3.2, rear: .08, bar: 2, glow: .16,
+    charge: { windup: 1.1, speed: 11, time: 1.3, damage: 28, cooldown: 5.5, from: 12 },
+  },
+  // The boss. Slow, enormous, and its telegraph is long enough to be a warning
+  // rather than a formality.
+  rex: {
+    hp: 800, radius: 1.9, speed: 2.9, range: 14, band: 4,
+    cooldown: 2.6, telegraph: 1.1, burst: 3, spread: .34,
+    // `bar` is a child of the rig, which the model scales by 1.35, so this is
+    // pre-division rather than a world height.
+    format: 'sql', gait: 2.6, rear: .16, bar: 3.6, glow: .2,
+    charge: { windup: 1.2, speed: 15, time: 1.2, damage: 36, cooldown: 7, from: 13 },
+  },
 };
 
 export const SPECIES_IDS = Object.keys(SPECIES);
@@ -100,6 +131,10 @@ export function createEnemies(scene, kit) {
       alive: true,
       state: 'approach',
       timer: traits.cooldown * (.4 + Math.random() * .8), // stagger the first volley
+      chargeTimer: traits.charge ? traits.charge.cooldown * (.5 + Math.random()) : Infinity,
+      chargeX: 0,
+      chargeZ: 0,
+      hitPlayer: false,
       orbit: Math.random() < .5 ? -1 : 1,
       stride: Math.random() * 6,
       speed: 0,
@@ -137,7 +172,9 @@ export function createEnemies(scene, kit) {
   // Circle push-out against the arena's logs and stones, plus the outer ring.
   // Enemies ignore obstacle height: unlike Jerry they never jump.
   function collide(enemy, arena) {
-    for (const obstacle of arena.obstacles) {
+    // Flyers cross the platforms rather than walking round them; the arena rim
+    // still holds them, or they would drift off over the reeds.
+    if (!enemy.traits.fly) for (const obstacle of arena.obstacles) {
       const dx = enemy.x - obstacle.x;
       const dz = enemy.z - obstacle.z;
       const reach = obstacle.radius + enemy.radius;
@@ -213,17 +250,23 @@ export function createEnemies(scene, kit) {
     rig.tail.rotation.y = Math.sin(enemy.stride * .6) * .22;
     rig.head.rotation.y = Math.sin(enemy.stride * .5) * .1;
 
-    // Rearing up during the telegraph, easing back down afterwards. This and
-    // the glow are the whole promise that a hit was earned rather than random.
+    // Flyers bob rather than walk, and hold their cruising height.
+    if (traits.fly) rig.body.position.y = 2.6 + Math.sin(enemy.stride * .35) * .22;
+
+    // Rearing up during a telegraph or a charge wind-up, easing back down after.
+    // This and the glow are the whole promise that a hit was earned rather than
+    // arbitrary — a charge you cannot see coming is just damage.
     const winding = enemy.state === 'telegraph'
       ? 1 - enemy.timer / traits.telegraph
-      : 0;
+      : enemy.state === 'windup'
+        ? 1 - enemy.timer / traits.charge.windup
+        : 0;
     rig.body.rotation.z = THREE.MathUtils.lerp(rig.body.rotation.z, winding * traits.rear, .2) + enemy.lean * .04;
     enemy.glow.scale.setScalar(Math.max(winding * winding * traits.glow, .0001));
     enemy.glow.material.opacity = .3 + winding * .6;
   }
 
-  function update(dt, { camera, target, arena, projectiles }) {
+  function update(dt, { camera, target, arena, projectiles, hurt }) {
     separate(dt);
 
     for (let i = list.length - 1; i >= 0; i--) {
@@ -267,6 +310,7 @@ export function createEnemies(scene, kit) {
       rig.group.rotation.y += delta * (1 - Math.pow(.02, dt));
 
       enemy.timer -= dt;
+      enemy.chargeTimer -= dt;
 
       if (enemy.state === 'telegraph') {
         enemy.speed = 0;
@@ -277,6 +321,35 @@ export function createEnemies(scene, kit) {
           // Half of them reverse their orbit after firing, so a strafing pack
           // does not settle into one predictable carousel.
           if (Math.random() < .5) enemy.orbit *= -1;
+        }
+      } else if (enemy.state === 'windup') {
+        // Planted, leaning back, and very obviously about to go. The whole point
+        // of a charge is that it is survivable if you read the wind-up.
+        enemy.speed = 0;
+        if (enemy.timer <= 0) {
+          // The line is locked in *now*, not tracked during the run, so a charge
+          // can be side-stepped. A homing charge is just unavoidable damage.
+          enemy.chargeX = toward.x;
+          enemy.chargeZ = toward.z;
+          enemy.hitPlayer = false;
+          enemy.state = 'charge';
+          enemy.timer = traits.charge.time;
+        }
+      } else if (enemy.state === 'charge') {
+        const charge = traits.charge;
+        enemy.speed = charge.speed;
+        enemy.x += enemy.chargeX * charge.speed * dt;
+        enemy.z += enemy.chargeZ * charge.speed * dt;
+
+        // One hit per charge, however long it stays in contact.
+        if (!enemy.hitPlayer && distance < enemy.radius + target.radius + .2) {
+          enemy.hitPlayer = true;
+          hurt(charge.damage);
+        }
+        if (enemy.timer <= 0) {
+          enemy.state = 'recover';
+          enemy.timer = traits.cooldown * .6;
+          enemy.chargeTimer = charge.cooldown;
         }
       } else {
         // Hold a ring around Jerry: close in when outside it, back off when
@@ -304,9 +377,14 @@ export function createEnemies(scene, kit) {
         enemy.x += moveX * enemy.speed * dt;
         enemy.z += moveZ * enemy.speed * dt;
 
-        // Only wind up once actually in range, or the shot lands where Jerry
-        // was two seconds ago and the telegraph teaches nothing.
-        if (enemy.timer <= 0 && distance <= traits.range * 1.1) {
+        // A charge outranks a shot: it is the more dangerous option and the one
+        // that most wants to open at distance, so it gets first refusal.
+        if (traits.charge && enemy.chargeTimer <= 0 && distance <= traits.charge.from) {
+          enemy.state = 'windup';
+          enemy.timer = traits.charge.windup;
+        } else if (enemy.timer <= 0 && distance <= traits.range * 1.1) {
+          // Only wind up once actually in range, or the shot lands where Jerry
+          // was two seconds ago and the telegraph teaches nothing.
           enemy.state = 'telegraph';
           enemy.timer = traits.telegraph;
         }

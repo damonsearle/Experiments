@@ -44,13 +44,33 @@ export const WEAPONS = [
     // answer a swarm that a bigger single hit cannot.
     blast: { radius: 2.5, damage: 16 },
   },
-  { id: 'usb', name: 'USB Drive', tier: 5, damage: 50, cooldown: .3, speed: 44, range: 30, magazine: 14, tint: 0x2e6f9e, arc: .1 },
-  { id: 'ssd', name: 'SSD', tier: 6, damage: 68, cooldown: .34, speed: 62, range: 34, magazine: 10, tint: 0x1f6f5c, arc: .05, pierce: 2 },
-  { id: 'cloud', name: 'Cloud', tier: 7, damage: 90, cooldown: .8, speed: 15, range: 26, magazine: 6, tint: 0xdfe8ef, arc: 1.2 },
+  {
+    id: 'usb', name: 'USB Drive', tier: 5,
+    damage: 50, cooldown: .3, speed: 44, range: 30, magazine: 14,
+    tint: 0x2e6f9e, arc: .08,
+    // Flat and fast. No arc worth the name, which is the point — this is the
+    // tier you reach for when something is charging and you need it dead now.
+  },
+  {
+    id: 'ssd', name: 'SSD', tier: 6,
+    damage: 68, cooldown: .34, speed: 62, range: 34, magazine: 10,
+    tint: 0x1f6f5c, arc: .04,
+    pierce: 2,
+  },
+  {
+    id: 'cloud', name: 'Cloud', tier: 7,
+    damage: 90, cooldown: .8, speed: 15, range: 26, magazine: 6,
+    tint: 0xdfe8ef, arc: 1.1,
+    // Slow, homing, and it rains on everything nearby when it arrives. The only
+    // tier that will find a target you did not aim at.
+    homing: 5.5, homingReach: 12,
+    blast: { radius: 4, damage: 30 },
+  },
 ];
 
-// What M3 actually arms Jerry with, in selector order.
-export const ARSENAL = WEAPONS.slice(0, 4);
+// The full ladder is armed from M5. Tiers 5-7 are rare enough that the floppy is
+// still doing most of the work.
+export const ARSENAL = WEAPONS;
 
 export const WEAPON_BY_ID = new Map(WEAPONS.map(weapon => [weapon.id, weapon]));
 
@@ -62,6 +82,12 @@ export const FORMATS = [
   { id: 'txt', name: '.TXT', damage: 4, speed: 14, range: 26, tint: 0xe8e2d0, arc: .35 },
   { id: 'csv', name: '.CSV', damage: 8, speed: 16, range: 26, tint: 0xe0912f, arc: .4 },
   { id: 'xls', name: '.XLS', damage: 14, speed: 12, range: 30, tint: 0x46b06e, arc: 1.5 },
+  // Dropped from above, so `fromAbove` opts it out of the jump dodge. The
+  // Pteranodon punishes standing still instead of punishing being on the ground.
+  { id: 'pdf', name: '.PDF', damage: 18, speed: 15, range: 28, tint: 0xd0453a, arc: .5, fromAbove: true },
+  { id: 'zip', name: '.ZIP', damage: 26, speed: 18, range: 26, tint: 0xc9a227, arc: .6 },
+  { id: 'iso', name: '.ISO', damage: 34, speed: 10, range: 30, tint: 0x8f7fd0, arc: .8 },
+  { id: 'sql', name: '.SQL', damage: 50, speed: 13, range: 32, tint: 0x3fa9c9, arc: .7 },
 ];
 
 export const FORMAT_BY_ID = new Map(FORMATS.map(format => [format.id, format]));

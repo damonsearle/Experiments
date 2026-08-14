@@ -144,14 +144,14 @@ export function createPlayer(scene) {
     const step = input.takeCycle();
     if (step) player.cycle(step);
 
-    if (!player.alive || !input.firing || player.cooldown > 0) return;
+    if (!player.alive || !input.firing || player.cooldown > 0) return false;
 
     const weapon = player.weapon;
     if (rounds(weapon) <= 0) {
       // Dry mid-burst: drop to the floppy rather than stopping dead, so running
       // out changes what Jerry is throwing and never that he is throwing.
       player.weapon = ARSENAL[0];
-      return;
+      return false;
     }
     if (weapon.magazine !== Infinity) player.ammo[weapon.id] -= 1;
 
@@ -164,6 +164,7 @@ export function createPlayer(scene) {
       facing.x,
       facing.z,
     );
+    return true;
   };
 
   // Circle-vs-circle push-out on the XZ plane. Obstacles only block him while he is below

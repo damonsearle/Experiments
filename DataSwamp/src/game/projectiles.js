@@ -95,6 +95,33 @@ export function createProjectiles(scene, { capacity = 200 } = {}) {
     return true;
   }
 
+  // Cloud storage finding a target you did not aim at. Turns the velocity
+  // towards the nearest living hostile rather than snapping to it, so a homing
+  // puff still misses if you throw it at nothing.
+  function steer(shot, hostiles, dt) {
+    let best = null;
+    let bestDistance = shot.spec.homingReach * shot.spec.homingReach;
+    for (const target of hostiles) {
+      if (!target.alive) continue;
+      const dx = target.x - shot.x;
+      const dz = target.z - shot.z;
+      const distanceSq = dx * dx + dz * dz;
+      if (distanceSq >= bestDistance) continue;
+      best = target;
+      bestDistance = distanceSq;
+    }
+    if (!best) return;
+
+    const distance = Math.sqrt(bestDistance) || 1;
+    const speed = Math.hypot(shot.vx, shot.vz);
+    const turn = Math.min(shot.spec.homing * dt, 1);
+    shot.vx += ((best.x - shot.x) / distance * speed - shot.vx) * turn;
+    shot.vz += ((best.z - shot.z) / distance * speed - shot.vz) * turn;
+    const corrected = Math.hypot(shot.vx, shot.vz) || 1;
+    shot.vx = shot.vx / corrected * speed;
+    shot.vz = shot.vz / corrected * speed;
+  }
+
   return {
     live,
     trails,
@@ -150,6 +177,7 @@ export function createProjectiles(scene, { capacity = 200 } = {}) {
       for (let i = live.length - 1; i >= 0; i--) {
         const shot = live[i];
         const spec = shot.spec;
+        if (spec.homing && shot.faction === 'player') steer(shot, hostiles, dt);
         const step = Math.hypot(shot.vx, shot.vz) * dt;
         shot.x += shot.vx * dt;
         shot.z += shot.vz * dt;
