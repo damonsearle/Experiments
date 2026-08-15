@@ -118,7 +118,9 @@ export function createJerry() {
     pupil: new THREE.MeshStandardMaterial({ color: 0x140c06, roughness: .25 }),
     spark: new THREE.MeshBasicMaterial({ color: 0xffffff }),
     dark: new THREE.MeshStandardMaterial({ color: 0x33200f, roughness: .7 }),
-    frame: new THREE.MeshStandardMaterial({ color: 0xb04630, roughness: .34, metalness: .1 }),
+    frame: new THREE.MeshStandardMaterial({ color: 0x9f3825, roughness: .42, metalness: .12 }),
+    crease: new THREE.MeshStandardMaterial({ color: 0x8b612c, roughness: .72 }),
+    nostrilRim: new THREE.MeshStandardMaterial({ color: 0xc79443, roughness: .72 }),
     capRed: new THREE.MeshStandardMaterial({ color: 0xb4402c, roughness: .62 }),
     capCream: new THREE.MeshStandardMaterial({ color: 0xe9dcb6, roughness: .68 }),
     strap: new THREE.MeshStandardMaterial({ color: 0x2e6f96, roughness: .74 }),
@@ -166,35 +168,43 @@ export function createJerry() {
     [.88, -.45, .062],
   ]) scute(torso, [x, y - TORSO_Y, 0], radius);
 
-  /* -- head: cranium, brow, cheeks and a blunt snout in one blended mass ----- */
+  /* -- head: cranium, brow, cheeks and a tapered turtle snout ---------------- */
   const head = new THREE.Group();
   head.position.set(0, 2.50, 0);
   head.scale.setScalar(1.05);
   jerry.add(head);
 
   addMesh(head, paint(blob([
-    { at: [-.12, .10, 0], size: [.46, .44, .52] },    // cranium
-    { at: [.08, .30, 0], size: [.30, .20, .40] },     // brow shelf above the spectacles
-    // The mounds carry width forward past the eyes; without that the face
-    // narrows so fast that the outer edge of each spectacle rim hangs in space.
-    { at: [.20, .16, -.32], size: [.26, .26, .25] },  // the mounds the eyeballs bulge out of
-    { at: [.20, .16, .32], size: [.26, .26, .25] },
-    { at: [.08, -.14, -.34], size: [.32, .28, .26] }, // fat cheeks
-    { at: [.08, -.14, .34], size: [.32, .28, .26] },
+    { at: [-.14, .09, 0], size: [.50, .46, .53] },    // tall, broad cranium
+    { at: [.06, .31, 0], size: [.36, .18, .43] },     // heavy brow shelf above the spectacles
+    // Each eye sits on a separate fleshy mound, with a full cheek below it.
+    // That paired structure is the strongest feature in the turnaround.
+    { at: [.23, .17, -.32], size: [.28, .27, .25] },
+    { at: [.23, .17, .32], size: [.28, .27, .25] },
+    { at: [.10, -.15, -.35], size: [.34, .29, .27] },
+    { at: [.10, -.15, .35], size: [.34, .29, .27] },
     { at: [-.16, -.30, 0], size: [.34, .28, .36] },   // throat, sinking into the collar
-    { at: [.42, .00, 0], size: [.34, .24, .29] },     // muzzle, carried well clear of the eyes
-    { at: [.70, -.05, 0], size: [.24, .19, .22] },    // blunt snout tip
-    { at: [.44, -.17, 0], size: [.34, .12, .34] },    // overhanging upper lip
+    { at: [.38, .06, 0], size: [.28, .28, .25] },     // raised bridge between the eyes
+    { at: [.58, -.02, 0], size: [.29, .24, .23] },    // pear-shaped nose
+    { at: [.75, -.11, 0], size: [.18, .18, .19] },    // downturned beak tip
+    { at: [.43, -.18, 0], size: [.35, .105, .29] },   // overhanging upper lip
   ], { segments: 96, rings: 60, smooth: .13 }), bellyTone(.6, .35)), materials.head);
 
   for (const [x, y, radius] of [[-.50, .24, .062], [-.53, .04, .072], [-.46, -.16, .062]]) {
     scute(head, [x, y, 0], radius);
   }
 
-  // Nostrils, sunk into the top of the snout near the tip.
+  // Raised nostril rims and dark insets. A pair of bare black dots disappeared
+  // at game scale and made the nose look flat rather than softly moulded.
   for (const z of [-.08, .08]) {
-    addMesh(head, new THREE.SphereGeometry(.055, 10, 8), materials.dark, [.78, .10, z], [0, 0, -.5], [1, .58, .85]);
+    addMesh(head, new THREE.SphereGeometry(.034, 12, 9), materials.dark, [.947, .035, z * 1.32], [0, 0, -.35], [1, .70, .82]);
+    addMesh(head, new THREE.TorusGeometry(.040, .010, 8, 20), materials.nostrilRim, [.96, .038, z * 1.32], [0, Math.PI / 2, 0], [1, .92, 1]);
   }
+
+  // The vertical seam is what turns the muzzle from a generic rounded snout
+  // into the little two-lobed beak seen head-on in every front reference.
+  strut(head, materials.crease, [.955, .035, 0], [.975, -.065, 0], .0045, 7);
+  strut(head, materials.crease, [.975, -.065, 0], [.94, -.185, 0], .0045, 7);
 
   /* -- the grin ------------------------------------------------------------- */
   // Swinging the jaw open leaves a hole in the head — back faces are culled, so
@@ -202,7 +212,7 @@ export function createJerry() {
   // upper-lip ellipsoid dropped a little way down: same width, same curve, so
   // it can only ever show as a crescent hugging the lip line, and never breaks
   // the surface at the sides the way a free-standing ball does.
-  addMesh(head, new THREE.SphereGeometry(1, 22, 16), materials.mouth, [.44, -.28, 0], [0, 0, 0], [.325, .12, .325]);
+  addMesh(head, new THREE.SphereGeometry(1, 26, 18), materials.mouth, [.43, -.285, 0], [0, 0, 0], [.36, .17, .34]);
 
   // Blunt upper teeth hanging off that lip line. They climb faster than the lip
   // does towards the corners, so the outer ones tuck up out of sight instead of
@@ -213,7 +223,7 @@ export function createJerry() {
       head,
       new THREE.BoxGeometry(.036, .032, .036),
       materials.tooth,
-      [.46 + Math.cos(angle) * .24, -.28 + Math.abs(angle) * .065, Math.sin(angle) * .24],
+      [.46 + Math.cos(angle) * .24, -.285 + Math.abs(angle) * .065, Math.sin(angle) * .24],
       [0, -angle, 0],
     );
   }
@@ -222,34 +232,33 @@ export function createJerry() {
   // baseline, so the mouth hangs open in the neutral pose. The reference shows
   // a pale lower lip and no lower fangs, which the belly tone gives for free.
   const jaw = new THREE.Group();
-  jaw.position.set(.10, -.22, 0);
+  jaw.position.set(.05, -.17, 0);
   jaw.rotation.z = -.32;
   head.add(jaw);
   addMesh(jaw, paint(blob([
-    // The corners of the lower lip ride well above the front of it. Both lips
-    // as plain ellipsoids give a mouth that is fattest in the middle and droops
-    // at the ends — a pout. Lifting these two turns the same gap into a grin.
-    { at: [.32, -.15, 0], size: [.29, .13, .30] },
-    { at: [.56, -.15, 0], size: [.20, .11, .21] },
-    { at: [.10, -.07, -.26], size: [.20, .15, .18] },
-    { at: [.10, -.07, .26], size: [.20, .15, .18] },
+    // A shallow U-shaped lip rather than another chin-sized ellipsoid. Keeping
+    // the corners behind the cheeks leaves a clean opening without growing a
+    // pale wedge from the mouth all the way down to the collar.
+    { at: [.50, -.05, 0], size: [.27, .085, .27] },
+    { at: [.33, .00, -.23], size: [.20, .10, .16] },
+    { at: [.33, .00, .23], size: [.20, .10, .16] },
   ], { segments: 48, rings: 30, smooth: .15 }), (shade, point) => {
     shade.copy(BACK).lerp(BELLY, THREE.MathUtils.smoothstep(-point.y * 2.4 + .3, -.8, .8));
   }), materials.limb);
   // The tongue rides on the jaw rather than the skull, so it stays in the mouth
   // while the grin flaps.
-  addMesh(jaw, new THREE.SphereGeometry(1, 18, 12), materials.tongue, [.36, -.05, 0], [0, 0, 0], [.20, .035, .17]);
+  addMesh(jaw, new THREE.SphereGeometry(1, 18, 12), materials.tongue, [.51, -.02, 0], [0, 0, .32], [.19, .035, .17]);
 
   /* -- bulging eyes behind chunky round spectacles --------------------------- */
   const eyes = [];
-  for (const z of [-.27, .27]) {
+  for (const z of [-.30, .30]) {
     const side = Math.sign(z);
     const socket = new THREE.Group();
-    socket.position.set(.44, .19, z);
-    socket.rotation.y = -side * .16;
+    socket.position.set(.55, .19, z);
+    socket.rotation.y = -side * .10;
     head.add(socket);
 
-    const eye = addMesh(socket, new THREE.SphereGeometry(.17, 26, 20), materials.sclera);
+    const eye = addMesh(socket, new THREE.SphereGeometry(.185, 28, 22), materials.sclera);
 
     // Iris, pupil and catchlight are shells of the eyeball, so they can never
     // sink into it however the socket is turned. The iris is kept narrow enough
@@ -258,20 +267,21 @@ export function createJerry() {
     const gaze = new THREE.Group();
     gaze.rotation.set(0, side * .05, -.06);
     socket.add(gaze);
-    addMesh(gaze, eyeCap(.172, .50), materials.iris);
-    const pupil = addMesh(gaze, eyeCap(.175, .26), materials.pupil);
-    addMesh(gaze, eyeCap(.179, .11), materials.spark, [0, 0, 0], [.9, 0, -.6]);
+    addMesh(gaze, eyeCap(.187, .50), materials.iris);
+    const pupil = addMesh(gaze, eyeCap(.190, .26), materials.pupil);
+    addMesh(gaze, eyeCap(.194, .105), materials.spark, [0, 0, 0], [0, -side * .38, .45]);
     eyes.push({ eye, pupil });
 
     // Spectacles: a thick rim framing the eye, a barely there lens, and a temple
     // running back over the cheek to the skull. The rim's *opening* has to clear
     // the eyeball — a rim narrower than the eye crops it into a dark slot.
-    addMesh(socket, new THREE.TorusGeometry(.235, .042, 10, 30), materials.frame, [.09, 0, 0], [0, Math.PI / 2, 0], [1, .96, 1]);
-    addMesh(socket, new THREE.CircleGeometry(.225, 26), materials.lens, [.105, 0, 0], [0, Math.PI / 2, 0]);
-    strut(head, materials.frame, [.46, .23, side * .38], [-.28, .28, side * .46], .028);
+    addMesh(socket, new THREE.TorusGeometry(.238, .040, 10, 32), materials.frame, [.225, 0, 0], [0, Math.PI / 2, 0], [1, .98, 1]);
+    addMesh(socket, new THREE.CircleGeometry(.225, 28), materials.lens, [.235, 0, 0], [0, Math.PI / 2, 0]);
+    addMesh(socket, new THREE.SphereGeometry(.019, 10, 8), materials.steel, [.255, .14, side * .185]);
+    strut(head, materials.frame, [.61, .22, side * .42], [-.28, .28, side * .47], .028);
   }
-  // Bridge across the top of the snout, joining the two rims.
-  strut(head, materials.frame, [.58, .23, -.15], [.58, .23, .15], .036);
+  // Bridge across the upper nose, safely above the pupils.
+  strut(head, materials.frame, [.805, .27, -.16], [.805, .27, .16], .034);
 
   /* -- propeller beanie ----------------------------------------------------- */
   const cap = new THREE.Group();
