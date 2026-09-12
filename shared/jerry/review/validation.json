@@ -1,0 +1,165 @@
+{
+  "revision": 6,
+  "frames": {
+    "1": {
+      "Jerry_Rounded_frames": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014158
+      },
+      "Jerry_Temple_band": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018058
+      },
+      "Jerry_Rounded_frames.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014189
+      },
+      "Jerry_Temple_band.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018031
+      },
+      "Jerry_Broad_bridge": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.11928
+      },
+      "Jerry_Frame_pin": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096172
+      },
+      "Jerry_Frame_pin.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096167
+      }
+    },
+    "23": {
+      "Jerry_Rounded_frames": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014158
+      },
+      "Jerry_Temple_band": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018047
+      },
+      "Jerry_Rounded_frames.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014189
+      },
+      "Jerry_Temple_band.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018018
+      },
+      "Jerry_Broad_bridge": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.11928
+      },
+      "Jerry_Frame_pin": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096172
+      },
+      "Jerry_Frame_pin.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096167
+      }
+    },
+    "45": {
+      "Jerry_Rounded_frames": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014158
+      },
+      "Jerry_Temple_band": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018068
+      },
+      "Jerry_Rounded_frames.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014189
+      },
+      "Jerry_Temple_band.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018041
+      },
+      "Jerry_Broad_bridge": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.11928
+      },
+      "Jerry_Frame_pin": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096172
+      },
+      "Jerry_Frame_pin.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096167
+      }
+    },
+    "68": {
+      "Jerry_Rounded_frames": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014158
+      },
+      "Jerry_Temple_band": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018083
+      },
+      "Jerry_Rounded_frames.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014189
+      },
+      "Jerry_Temple_band.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018057
+      },
+      "Jerry_Broad_bridge": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.11928
+      },
+      "Jerry_Frame_pin": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096172
+      },
+      "Jerry_Frame_pin.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096167
+      }
+    },
+    "90": {
+      "Jerry_Rounded_frames": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014158
+      },
+      "Jerry_Temple_band": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018058
+      },
+      "Jerry_Rounded_frames.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.014189
+      },
+      "Jerry_Temple_band.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.018031
+      },
+      "Jerry_Broad_bridge": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.11928
+      },
+      "Jerry_Frame_pin": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096172
+      },
+      "Jerry_Frame_pin.001": {
+        "intersection_pairs": 0,
+        "minimum_vertex_clearance": 0.096167
+      }
+    }
+  },
+  "export": {
+    "triangles": 91544,
+    "bones": 24,
+    "animations": [
+      "Jerry_Idle"
+    ],
+    "embedded_images": 4,
+    "bytes": 29018496,
+    "all_meshes_skinned": true
+  }
+}

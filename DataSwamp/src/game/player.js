@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createJerry } from '../creature/jerry.js';
+import { createJerry, showJerryLoading } from '../creature/jerry.js';
 import { ARSENAL } from './weapons.js';
 
 const SPEED = 8.2;
@@ -17,6 +17,7 @@ const BLINK = 14;   // blinks per second while the mercy window is open
 
 export function createPlayer(scene) {
   const rig = createJerry();
+  showJerryLoading(rig);
   const group = rig.group;
   scene.add(group);
 

@@ -149,6 +149,7 @@ function resetGame() {
 }
 
 function startGame() {
+  if (!jerry.loaded) return;
   resetGame();
   state = 'running';
   document.body.classList.add('game-started');
@@ -262,6 +263,7 @@ function animate() {
   camera.position.copy(pose.position);
   camera.position.y += jerry.group.position.y * .08;
   camera.lookAt(pose.target);
+  jerry.update();
   renderer.render(scene, camera);
 }
 animate();

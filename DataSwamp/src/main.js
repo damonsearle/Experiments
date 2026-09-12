@@ -308,7 +308,7 @@ function restart() {
 }
 
 function begin() {
-  if (started) return;
+  if (started || !player.rig.loaded) return;
   started = true;
   startPanel.classList.remove('shown');
   // The gesture that dismissed the panel is the one that lets mobile browsers
@@ -379,6 +379,7 @@ function frame() {
   // Still rendered while paused, so the swamp is visible behind the panel — but
   // nothing advances, and the clamped delta means resuming never jumps.
   if (paused) {
+    player.rig.update();
     renderer.render(scene, camera);
     return;
   }
@@ -459,6 +460,7 @@ function frame() {
   lookAt.lerp(player.group.position, ease);
   camera.lookAt(lookAt.x, lookAt.y + LOOK_LIFT, lookAt.z);
 
+  player.rig.update();
   renderer.render(scene, camera);
 }
 

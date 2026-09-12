@@ -1,0 +1,12 @@
+00:03.875  blend            | Read blend: "C:\Users\damon\Documents\GitHub\Experiments\shared\jerry\Jerry_Character_Rev6.blend"
+00:51.891  render           | Saved: 'C:\Users\damon\Documents\GitHub\Experiments\shared\jerry\review\revision6_front.png'
+01:53.407  render           | Saved: 'C:\Users\damon\Documents\GitHub\Experiments\shared\jerry\review\revision6_three_quarter.png'
+02:44.641  render           | Saved: 'C:\Users\damon\Documents\GitHub\Experiments\shared\jerry\review\revision6_side.png'
+BlenderMCP: cannot start server in background mode (blender -b) - commands would never execute
+BlenderMCP: run Blender with a GUI, or use a virtual display: xvfb-run -a blender
+BlenderMCP addon registered
+BlenderMCP server stopped
+BlenderMCP addon unregistered
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+
+Blender quit

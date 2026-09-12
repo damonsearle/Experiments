@@ -6,6 +6,7 @@ on:
     paths:
       - 'GrandTheftData/**'
       - 'DataSwamp/**'
+      - 'shared/jerry/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
