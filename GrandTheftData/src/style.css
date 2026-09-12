@@ -107,5 +107,11 @@ footer { position: fixed; z-index: 5; left: 34px; right: 34px; bottom: 0; height
   .hud { top: 82px; right: 20px; gap: 15px 22px; }
   .stat strong { font-size: 18px; }
   .panel { left: 20px; right: 20px; bottom: 74px; width: auto; }
+  .start-panel { left: auto; width: 160px; padding: 0; box-shadow: 5px 5px 0 rgba(7,17,15,.45); }
+  .start-panel .panel-index,
+  .start-panel .eyebrow,
+  .start-panel h2,
+  .start-panel .touch-note { display: none; }
+  .start-panel .primary-button { min-height: 48px; margin: 0; padding: 14px 18px; border: 0; align-items: center; }
   footer { left: 18px; right: 18px; justify-content: center; }
 }
