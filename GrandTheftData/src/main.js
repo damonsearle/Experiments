@@ -231,15 +231,21 @@ canvas.addEventListener('pointerdown', jump);
 
 function frameCamera() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
-  const narrow = innerWidth < 760;
+  const narrow = innerWidth <= 760;
   runPose.position.set(10.5, narrow ? 5.2 : 5.4, narrow ? 17.5 : 13.5);
-  // On a narrow screen the panels crowd the middle, so hold the turntable a little further off.
-  // Wide: Jerry sits low, under the headline and left of the start panel. Narrow: the panel
-  // eats the lower half, so hold further back and aim lower to lift him clear of it.
-  inspectPose.position.set(narrow ? 5.15 : 2, narrow ? 2.1 : 3, narrow ? 15.2 : 6.2);
-  inspectPose.target.set(-2.1, narrow ? 1.98 : 2.35, -.6);
+  if (narrow) {
+    // Fill the space above the compact Start run button, with room to turn on tall phones.
+    const distance = Math.max(8.5, 4 / camera.aspect);
+    inspectPose.target.set(-2.9, 2.4, 0);
+    inspectPose.position.set(-2.9 + distance * .31, 2.6, distance * .95);
+  } else {
+    inspectPose.position.set(2, 3, 6.2);
+    inspectPose.target.set(-2.1, 2.35, -.6);
+  }
 }
 frameCamera();
+pose.position.copy(inspectPose.position);
+pose.target.copy(inspectPose.target);
 window.addEventListener('resize', frameCamera);
 
 const clock = new THREE.Clock();
