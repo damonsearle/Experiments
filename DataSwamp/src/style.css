@@ -565,3 +565,9 @@ body.touching .by-tap { display: inline; }
   #tap-jump { bottom: 4.8rem; right: 7rem; }
   #stick-aim .stick-label { bottom: 5rem; }
 }
+
+/* Model inspection is available from both the opening and paused game menus. */
+.model-menu {display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px;pointer-events:auto;}
+.model-menu a {padding:12px 17px;border:1px solid var(--rule);border-radius:5px;background:#19251e;color:var(--bone);font:12px var(--mono);text-decoration:none;}
+.model-menu a:hover {border-color:var(--amber);color:var(--amber);}
+.model-menu a:focus-visible {outline:2px solid var(--amber);outline-offset:3px;}

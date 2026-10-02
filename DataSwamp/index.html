@@ -38,6 +38,11 @@
         <li>Jumping clears shots fired along the ground. Not the ones dropped from above.</li>
       </ul>
       <p class="hint"><span class="by-key">Click to begin and capture mouse · Esc to pause</span><span class="by-tap">Tap to begin</span></p>
+      <nav class="model-menu" aria-label="Model viewer">
+        <a href="?view=jerry">View Jerry</a>
+        <a href="?view=enemies">View enemies</a>
+        <a href="?view=weapons">View weapons</a>
+      </nav>
     </div>
 
     <p id="banner" role="status"></p>
@@ -45,6 +50,11 @@
     <div id="pause" role="status">
       <p class="verdict">Paused</p>
       <p class="hint"><span class="by-key">Click to resume and capture mouse · any key for free cursor</span><span class="by-tap">Tap to resume</span></p>
+      <nav class="model-menu" aria-label="Model viewer">
+        <a href="?view=jerry">View Jerry</a>
+        <a href="?view=enemies">View enemies</a>
+        <a href="?view=weapons">View weapons</a>
+      </nav>
     </div>
 
     <div id="over" role="status">
@@ -73,6 +83,6 @@
       <p class="readout" id="readout">—</p>
     </footer>
 
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/entry.js"></script>
   </body>
 </html>

@@ -9,7 +9,7 @@ import { createProjectiles } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
 import { createPickups, HEALTH_AMOUNT } from './game/pickups.js';
 import { createWaves } from './game/waves.js';
-import { createDinoKit } from './creature/dinos.js';
+import { createBlenderDinoKit } from './creature/blender-dinos.js';
 import { createTouch } from './ui/touch.js';
 import { createAudio } from './audio.js';
 import { ARSENAL } from './game/weapons.js';
@@ -47,8 +47,17 @@ const player = createPlayer(scene);
 const input = createInput(canvas, { enabled: () => started && !paused && player.alive });
 const projectiles = createProjectiles(scene);
 
-// Every blob() in the game runs here, once. Spawning must never touch it.
-const dinoKit = createDinoKit();
+// Load the Blender models during the opening screen; spawns share geometry.
+const dinoKit = createBlenderDinoKit();
+const enemyStatus = document.createElement('p');
+enemyStatus.className = 'hint';
+enemyStatus.setAttribute('role', 'status');
+enemyStatus.textContent = 'Loading swamp wildlife…';
+startPanel.append(enemyStatus);
+dinoKit.ready.then(() => {
+  enemyStatus.textContent = dinoKit.failed.size
+    ? 'Some wildlife models could not load; using the original versions.' : '';
+});
 const enemies = createEnemies(scene, dinoKit);
 
 const pickups = createPickups(scene);
@@ -267,7 +276,7 @@ function restart() {
 }
 
 function begin() {
-  if (started || !player.rig.loaded) return;
+  if (started || !player.rig.loaded || !dinoKit.loaded) return;
   started = true;
   resetControls();
   startPanel.classList.remove('shown');
@@ -278,6 +287,7 @@ function begin() {
 
 startPanel.classList.add('shown');
 startPanel.addEventListener('pointerdown', event => {
+  if (event.target.closest('a')) return;
   event.preventDefault();
   event.stopPropagation();
   begin();
@@ -303,7 +313,7 @@ addEventListener('pointerlockchange', () => {
 });
 
 addEventListener('keydown', event => {
-  if (event.repeat) return;
+  if (event.repeat || event.code === 'Tab' || event.target.closest?.('a, button, input, select')) return;
   // "Press any key to begin" has to mean any key, including the ones that do
   // something else once the game is running.
   if (!started) {
@@ -317,6 +327,7 @@ addEventListener('keydown', event => {
 });
 
 pausePanel.addEventListener('pointerdown', event => {
+  if (event.target.closest('a')) return;
   event.preventDefault();
   event.stopPropagation();
   setPaused(false);

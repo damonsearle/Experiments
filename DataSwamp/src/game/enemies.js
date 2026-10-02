@@ -104,7 +104,7 @@ export function createEnemies(scene, kit) {
     rig.head.add(glow);
 
     const bar = new THREE.Group();
-    bar.position.y = traits.bar;
+    bar.position.y = rig.barHeight ? rig.barHeight / rig.group.scale.y : traits.bar;
     rig.group.add(bar);
     const back = new THREE.Mesh(barGeometry, barBack);
     back.renderOrder = 10;
@@ -113,7 +113,7 @@ export function createEnemies(scene, kit) {
     fill.renderOrder = 11;
     fill.position.z = .01;
     bar.add(fill);
-    bar.scale.setScalar(traits.bar / 2.4);
+    bar.scale.setScalar(traits.bar / 2.4 / (rig.barHeight ? rig.group.scale.y : 1));
 
     const enemy = {
       species: speciesId,
@@ -294,6 +294,8 @@ export function createEnemies(scene, kit) {
         enemy.bar.visible = false;
         if (fall >= 1) {
           scene.remove(rig.group);
+          rig.dispose?.();
+          enemy.glow.material.dispose();
           list.splice(i, 1);
         }
         continue;
@@ -405,7 +407,11 @@ export function createEnemies(scene, kit) {
   }
 
   function clear() {
-    for (const enemy of list) scene.remove(enemy.rig.group);
+    for (const enemy of list) {
+      scene.remove(enemy.rig.group);
+      enemy.rig.dispose?.();
+      enemy.glow.material.dispose();
+    }
     list.length = 0;
   }
 
