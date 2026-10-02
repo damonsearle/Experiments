@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { noise } from '../creature/hide.js';
 import { createFlora } from './flora.js';
 import { createRuins } from './ruins.js';
+import { groundGeometry, buildPlatform, dressTerrain } from './terrain.js';
 
 export const ARENA_RADIUS = 26;
 
@@ -64,7 +65,7 @@ function mudMap(seed) {
   // The map carries the whole colour, because a material that has both a `map`
   // and a `color` multiplies them — two mid greens make one near-black, which
   // is exactly what happened to the mud flat the first time round.
-  context.fillStyle = '#6b7350';
+  context.fillStyle = '#807558';
   context.fillRect(0, 0, size, size);
   for (let i = 0; i < 260; i++) {
     const radius = 4 + random() * 34;
@@ -77,6 +78,19 @@ function mudMap(seed) {
     context.fillStyle = blob;
     context.fillRect(-radius, -radius, radius * 2, radius * 2);
     context.restore();
+  }
+
+  // Fine grit and broken sediment lines sit below the broad moss patches.
+  for (let i = 0; i < 3500; i++) {
+    context.fillStyle = random() < .5 ? 'rgba(39,34,23,.13)' : 'rgba(197,183,134,.16)';
+    context.fillRect(random() * size, random() * size, .5 + random() * 1.4, .5 + random() * 1.1);
+  }
+  context.strokeStyle = 'rgba(41,37,26,.17)'; context.lineWidth = .6;
+  for (let i = 0; i < 80; i++) {
+    const x = random() * size, y = random() * size;
+    context.beginPath(); context.moveTo(x, y);
+    context.lineTo(x + random() * 8 - 4, y + 3);
+    context.lineTo(x + random() * 8 - 4, y + 7); context.stroke();
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -180,10 +194,9 @@ export function createArena(scene, { lean = false } = {}) {
   // Stops just past the reeds so the water ring is actually visible from inside
   // the arena rather than being a plane nobody ever sees.
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(ARENA_RADIUS + 2, 96),
-    new THREE.MeshStandardMaterial({ roughness: .98, metalness: 0, map: mudMap(3) }),
+    groundGeometry(ARENA_RADIUS),
+    new THREE.MeshStandardMaterial({ roughness: .93, metalness: 0, map: mudMap(3), bumpMap: mudMap(31), bumpScale: .055, vertexColors: true }),
   );
-  ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
@@ -197,8 +210,6 @@ export function createArena(scene, { lean = false } = {}) {
   scene.add(props);
 
   const mudMaterial = new THREE.MeshStandardMaterial({ roughness: .96, map: mudMap(11) });
-  const boardMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3a26, roughness: .92 });
-  const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x555b4d, roughness: .9 });
 
   const layout = [
     { x: 6, z: -4, radius: 2.4, height: 1, kind: 'bank' },
@@ -212,44 +223,9 @@ export function createArena(scene, { lean = false } = {}) {
   ];
 
   for (const spot of layout) {
-    let mesh;
-    if (spot.kind === 'stone') {
-      mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(spot.radius, 0), stoneMaterial);
-      mesh.position.set(spot.x, spot.height - spot.radius * .55, spot.z);
-      mesh.scale.y = .8;
-    } else {
-      // Banks and boardwalks are flat-topped cylinders, so the top really is at
-      // `height` and standing on one cannot leave Jerry hovering.
-      mesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(spot.radius, spot.radius * 1.12, spot.height + 1, 18),
-        spot.kind === 'board' ? boardMaterial : mudMaterial,
-      );
-      mesh.position.set(spot.x, spot.height - (spot.height + 1) / 2, spot.z);
-    }
-    mesh.rotation.y = Math.random() * Math.PI;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    props.add(mesh);
+    props.add(buildPlatform(spot, mudMaterial));
     obstacles.push({ x: spot.x, z: spot.z, radius: spot.radius, height: spot.height, standable: spot.kind !== 'stone' });
   }
-
-  /* ------------------------------------------------------------------ edging */
-
-  const reed = new THREE.ConeGeometry(.16, 2.6, 5);
-  const reedMaterial = new THREE.MeshStandardMaterial({ color: 0x54633c, roughness: 1 });
-  const reeds = new THREE.InstancedMesh(reed, reedMaterial, 260);
-  const placer = new THREE.Object3D();
-  for (let i = 0; i < reeds.count; i++) {
-    const angle = (i / reeds.count) * Math.PI * 2 + Math.random() * .1;
-    const distance = ARENA_RADIUS + Math.random() * 4;
-    placer.position.set(Math.cos(angle) * distance, 1.1, Math.sin(angle) * distance);
-    placer.rotation.set((Math.random() - .5) * .3, Math.random() * Math.PI, (Math.random() - .5) * .3);
-    placer.scale.setScalar(.7 + Math.random() * .9);
-    placer.updateMatrix();
-    reeds.setMatrixAt(i, placer.matrix);
-  }
-  reeds.castShadow = true;
-  scene.add(reeds);
 
   /* ------------------------------------------------------------------- spores */
 
@@ -276,7 +252,8 @@ export function createArena(scene, { lean = false } = {}) {
   // Ruins first: the mainframe adds itself to the obstacle list, and the flora
   // planter reads that list to avoid growing ferns through it.
   const ruins = createRuins(scene, { obstacles });
-  createFlora(scene, { radius: ARENA_RADIUS, obstacles });
+  createFlora(scene, { radius: ARENA_RADIUS, obstacles, lean });
+  dressTerrain(scene, { radius: ARENA_RADIUS, obstacles, lean });
 
   /* -------------------------------------------------------------------- api */
 

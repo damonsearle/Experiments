@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import { WEAPON_BY_ID, projectileMesh } from './weapons.js';
+import { batchParts } from '../scene/geometry.js';
 
 /* --------------------------------------------------------------------------
    Ammo caches and coffee. Both float and turn slowly above the mud inside a
@@ -29,26 +30,42 @@ const HEALTH_AMOUNT = 30;
 
 const beaconGeometry = new THREE.CylinderGeometry(.44, .5, 1.5, 14, 1, true);
 const ringGeometry = new THREE.RingGeometry(.5, .62, 22);
-const mugBody = new THREE.CylinderGeometry(.17, .14, .26, 16);
+const mugBody = new THREE.LatheGeometry([[0, -.13], [.13, -.13], [.15, -.10], [.17, .12], [.17, .14], [.147, .14], [.14, -.09], [0, -.09]].map(p => new THREE.Vector2(...p)), 24);
 const mugHandle = new THREE.TorusGeometry(.09, .028, 8, 14);
 const mugBrew = new THREE.CylinderGeometry(.145, .145, .02, 16);
 
 const mugCeramic = new THREE.MeshStandardMaterial({ color: 0xe8e0cb, roughness: .5 });
 const mugCoffee = new THREE.MeshStandardMaterial({ color: 0x35200f, roughness: .3 });
 
+let mugPrototype;
 function buildMug() {
+  if (mugPrototype) return mugPrototype.clone(true);
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 256;
+  const ink = canvas.getContext('2d');
+  ink.fillStyle = '#e8e0cb'; ink.fillRect(0, 0, 512, 256);
+  ink.fillStyle = '#3f4939'; ink.textAlign = 'center'; ink.font = 'bold 26px monospace';
+  for (const centre of [128, 384]) {
+    ["I DON'T NEED", 'BACKUPS,', 'I HAVE LUCK'].forEach((line, i) => ink.fillText(line, centre, 90 + i * 35));
+  }
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  const ceramic = mugCeramic.clone(); ceramic.color.set(0xffffff); ceramic.map = map;
   const mug = new THREE.Group();
-  const body = new THREE.Mesh(mugBody, mugCeramic);
+  const body = new THREE.Mesh(mugBody, ceramic);
   body.castShadow = true;
   mug.add(body);
   const handle = new THREE.Mesh(mugHandle, mugCeramic);
   handle.position.set(.19, 0, 0);
-  handle.rotation.y = Math.PI / 2;
+  handle.rotation.y = 0;
   mug.add(handle);
   const brew = new THREE.Mesh(mugBrew, mugCoffee);
-  brew.position.y = .12;
+  brew.position.y = .10;
   mug.add(brew);
-  return mug;
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(.158, .012, 6, 24), mugCeramic);
+  lip.rotation.x = Math.PI / 2; lip.position.y = .14; mug.add(lip);
+  batchParts(mug);
+  mugPrototype = mug;
+  return mug.clone(true);
 }
 
 export function createPickups(scene) {

@@ -238,14 +238,15 @@ export function createEnemies(scene, kit) {
 
   function animate(enemy, dt) {
     const { rig, traits } = enemy;
-    enemy.stride += enemy.speed * dt * traits.gait;
+    enemy.stride += (traits.fly ? Math.max(enemy.speed, 2) : enemy.speed) * dt * traits.gait;
 
     const gait = Math.min(enemy.speed / traits.speed, 1);
     const swing = Math.sin(enemy.stride) * .5 * gait;
     for (let i = 0; i < rig.legs.length; i++) {
       // Quadrupeds trot diagonally, bipeds just alternate; both fall out of
       // flipping the sign on alternate legs.
-      rig.legs[i].rotation.z = i % 2 ? -swing : swing;
+      if (traits.fly) rig.legs[i].rotation.x = Math.sin(enemy.stride * .45) * .48 * (i % 2 ? 1 : -1);
+      else rig.legs[i].rotation.z = i % 2 ? -swing : swing;
     }
     rig.tail.rotation.y = Math.sin(enemy.stride * .6) * .22;
     rig.head.rotation.y = Math.sin(enemy.stride * .5) * .1;

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { batchParts, mesh, link } from './geometry.js';
+import { surfaceMap } from './terrain.js';
 
 /* --------------------------------------------------------------------------
    The data centre that lost.
@@ -14,9 +16,9 @@ import * as THREE from 'three';
    -------------------------------------------------------------------------- */
 
 const rackShell = new THREE.BoxGeometry(1.5, 2.6, .95);
-const rackBlade = new THREE.BoxGeometry(1.35, .13, .82);
+const rackBlade = new THREE.BoxGeometry(1.35, .18, .08);
 const cardGeometry = new THREE.BoxGeometry(.42, .01, .19);
-const vineGeometry = new THREE.CylinderGeometry(.035, .035, 1, 5);
+const trimBox = new THREE.BoxGeometry(1, 1, 1);
 
 const steelDark = new THREE.MeshStandardMaterial({ color: 0x2f3430, roughness: .72, metalness: .45 });
 const steelWorn = new THREE.MeshStandardMaterial({ color: 0x474d44, roughness: .85, metalness: .3 });
@@ -28,6 +30,28 @@ const deadLamp = new THREE.MeshStandardMaterial({
   emissive: 0x1d5a3a,
   emissiveIntensity: .6,
 });
+const rust = new THREE.MeshStandardMaterial({ color: 0x745037, map: surfaceMap('stone', 71), roughness: .98 });
+const moss = new THREE.MeshStandardMaterial({ color: 0x485535, roughness: 1 });
+steelDark.map = surfaceMap('stone', 45);
+steelWorn.map = surfaceMap('stone', 23);
+
+function archiveLabel(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#9e987a'; context.fillRect(0, 0, 256, 64);
+  context.fillStyle = '#313c32'; context.font = 'bold 26px monospace';
+  context.fillText(text, 12, 40);
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshStandardMaterial({ map, roughness: .95 });
+}
+const labelMaterial = archiveLabel('ARCHIVE / 07');
+
+function panelDetail(parent, x, y, z, width) {
+  for (let v = 0; v < 5; v++) mesh(parent, trimBox, steelDark, [x - width * .22 + v * width * .075, y, z], [.025, .085, .009]);
+  mesh(parent, trimBox, deadLamp, [x + width * .34, y, z], [.034, .032, .015]);
+  for (const side of [-1, 1]) mesh(parent, trimBox, rust, [x + side * width * .43, y, z], [.025, .035, .013]);
+}
 
 // Racks lean because they have been sinking for a hundred million years.
 function buildRack(x, z, sink, lean, turn) {
@@ -42,20 +66,24 @@ function buildRack(x, z, sink, lean, turn) {
 
   for (let i = 0; i < 7; i++) {
     const blade = new THREE.Mesh(rackBlade, i % 3 === 0 ? deadLamp : steelWorn);
-    blade.position.set(0, 1 - i * .3, .09);
+    blade.position.set(0, 1 - i * .3, .5);
     rack.add(blade);
+    panelDetail(rack, 0, 1 - i * .3, .545, 1.35);
   }
+  for (const side of [-1, 1]) mesh(rack, trimBox, rust, [side * .69, 0, .55], [.065, 2.55, .06]);
+  mesh(rack, trimBox, moss, [0, 1.31, 0], [1.5, .065, .95]);
+  mesh(rack, new THREE.PlaneGeometry(.83, .20), labelMaterial, [0, 1.13, .557]);
+  rack.add(buildVine([.6, 1.28, .6], [-.4, -1.6, .8]));
   return rack;
 }
 
 function buildVine(from, to) {
   const start = new THREE.Vector3(...from);
-  const direction = new THREE.Vector3(...to).sub(start);
-  const length = direction.length();
-  const vine = new THREE.Mesh(vineGeometry, vineSkin);
-  vine.scale.y = length;
-  vine.position.copy(start).addScaledVector(direction, .5);
-  vine.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+  const end = new THREE.Vector3(...to);
+  const mid = start.clone().lerp(end, .5);
+  mid.y -= .6;
+  const curve = new THREE.CatmullRomCurve3([start, start.clone().lerp(end, .23).add(new THREE.Vector3(.13, -.32, .1)), mid, end]);
+  const vine = new THREE.Mesh(new THREE.TubeGeometry(curve, 16, .045, 5, false), vineSkin);
   return vine;
 }
 
@@ -91,8 +119,15 @@ export function createRuins(scene, { obstacles }) {
       lamp.scale.set(.6, .8, .5);
       lamp.position.set(column * .95, 3.5 - row * .42, 1.32);
       frame.add(lamp);
+      panelDetail(frame, column * .95, 3.5 - row * .42, 1.349, .81);
     }
   }
+  for (const x of [-1.7, -.49, .49, 1.7]) mesh(frame, trimBox, rust, [x, 1.7, 1.36], [.07, 3.9, .08]);
+  mesh(frame, trimBox, moss, [0, 3.74, 0], [3.55, .09, 2.55]);
+  mesh(frame, new THREE.PlaneGeometry(1.6, .4), labelMaterial, [0, 3.5, 1.405]);
+  // Broken conduit and access door on the side of the mainframe.
+  mesh(frame, trimBox, steelWorn, [1.82, 1.8, 0], [.04, 2.5, 1.65], [0, .08, 0]);
+  for (let i = 0; i < 4; i++) link(frame, rust, [1.88, 3.6, -.75 + i * .32], [1.9, .2, -.75 + i * .32], .055);
 
   // Cable vines spilling off the top and into the mud.
   for (let i = 0; i < 7; i++) {
@@ -119,6 +154,16 @@ export function createRuins(scene, { obstacles }) {
   /* -------------------------------------------------------- drifting cards */
 
   const CARDS = 34;
+  const cardCanvas = document.createElement('canvas');
+  cardCanvas.width = 128; cardCanvas.height = 64;
+  const ink = cardCanvas.getContext('2d');
+  ink.fillStyle = '#cfc39b'; ink.fillRect(0, 0, 128, 64);
+  ink.fillStyle = '#544f3b';
+  for (let col = 0; col < 18; col++) for (let row = 0; row < 4; row++) {
+    if ((col * 7 + row * 3) % 5 < 2) ink.fillRect(6 + col * 6, 10 + row * 12, 3, 6);
+  }
+  cardStock.map = new THREE.CanvasTexture(cardCanvas);
+  cardStock.map.colorSpace = THREE.SRGBColorSpace;
   const cards = new THREE.InstancedMesh(cardGeometry, cardStock, CARDS);
   const placer = new THREE.Object3D();
   const drift = [];
@@ -150,5 +195,9 @@ export function createRuins(scene, { obstacles }) {
     cards.instanceMatrix.needsUpdate = true;
   }
 
+  batchParts(ruins);
+  update(0);
+  // Cards move over a fixed region; don't retain a bound from the first frame.
+  cards.frustumCulled = false;
   return { update };
 }

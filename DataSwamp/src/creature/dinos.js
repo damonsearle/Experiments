@@ -1,30 +1,15 @@
 import * as THREE from 'three';
 
 import { hideMaps, hideMaterial } from './hide.js';
-import { blob, paint, bellyTone } from './blob.js';
+import { paint, bellyTone } from './blob.js';
+import { animalSurface } from './surface.js';
+import { detailDino, plateGeometry } from './detail.js';
+import { batchParts } from '../scene/geometry.js';
 import { addMesh } from './parts.js';
 
-/* --------------------------------------------------------------------------
-   The swamp's wildlife. Three species for M2, built from the same blob kit as
-   Jerry so they share his silhouette language, and all facing +x so a heading
-   of zero points down the positive x axis exactly as the player does.
-
-   The rule this file exists to enforce is the trap PLAN.md flags: blob()
-   ray-marches thousands of vertices with 26 bisection steps each, which is
-   fine once at boot and catastrophic per spawn. Every geometry here is built
-   once by createDinoKit() and shared by every individual of that species.
-   spawn() only ever allocates Groups, Meshes and materials.
-
-   Materials are cloned per individual rather than shared, because a hit has to
-   flash one dinosaur without tinting every other member of its species. Clones
-   keep the same texture objects, so that costs a uniform block, not a texture.
-   -------------------------------------------------------------------------- */
-
-// A tight blend radius. The smooth union rounds away any feature narrower than
-// `smooth`, and these bodies are mostly thin necks and tapering tails hung off
-// fat torsos — at Jerry's .15 the necks dissolved into the chest and every
-// species came out a seal.
-const SHELL = { segments: 48, rings: 30, smooth: .07 };
+// All seven species face +x. Connected surfaces and decorative geometry are
+// built lazily once per species; spawning only clones the cached hierarchy and
+// materials used for hit flashes. Animation pivots remain independent groups.
 
 // Unit primitives for the trim — eyes, crests, plates, spikes. Scaled at the
 // call site rather than rebuilt per size, so spawn() allocates no geometry at
@@ -37,7 +22,7 @@ const SPIKE = new THREE.ConeGeometry(1, 1, 7);
 // Enemies are read at ten metres against dark water, so they get a coarser
 // mesh and a coarser hide than Jerry — the detail would not survive the trip.
 function scales(spec) {
-  return hideMaps({ ...spec, pebbles: 420, wart: 1.5 });
+  return hideMaps({ ...spec, pebbles: 900, wart: .75 });
 }
 
 /* ------------------------------------------------------------ Compsognathus */
@@ -50,30 +35,30 @@ function buildCompy() {
     // A horizontal spine that turns up into a real neck at the front. Running
     // the torso straight into the skull is what makes a small theropod read as
     // a seal instead of a dinosaur.
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.20, -.01, 0], size: [.17, .16, .16] },
       { at: [-.02, .01, 0], size: [.19, .17, .18] },
       { at: [.16, .03, 0], size: [.16, .16, .16] },
       { at: [.30, .10, 0], size: [.10, .10, .10] },
       { at: [.38, .20, 0], size: [.075, .085, .08] },
-    ], SHELL), bellyTone(.22)),
-    head: paint(blob([
+    ]), bellyTone(.22)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.09, .085, .085] },
       { at: [.14, -.03, 0], size: [.10, .055, .06] },
       { at: [.24, -.04, 0], size: [.05, .04, .045] },
-    ], SHELL), bellyTone(.16, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.16, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.14, .14, .14] },
       { at: [-.26, .03, 0], size: [.10, .10, .10] },
       { at: [-.50, .07, 0], size: [.06, .06, .06] },
       { at: [-.72, .12, 0], size: [.03, .03, .03] },
-    ], SHELL), bellyTone(.2)),
-    leg: paint(blob([
+    ]), bellyTone(.2)),
+    leg: paint(animalSurface([
       { at: [0, -.04, 0], size: [.10, .11, .09] },
       { at: [.07, -.17, 0], size: [.06, .08, .06] },
       { at: [.01, -.29, 0], size: [.045, .07, .045] },
       { at: [.08, -.36, 0], size: [.075, .03, .07] },
-    ], SHELL), bellyTone(.14)),
+    ]), bellyTone(.14)),
   };
 }
 
@@ -122,37 +107,37 @@ function buildDilo() {
     // A deep chest over narrow hips, and a neck that climbs steeply to a large
     // head. A tube of even diameter with a stub on the front reads as a seal
     // however good the head is, so the profile has to do the work.
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.30, .04, 0], size: [.22, .24, .22] },
       { at: [-.06, .00, 0], size: [.24, .27, .25] },
       { at: [.18, .06, 0], size: [.26, .30, .27] },
       { at: [.38, .18, 0], size: [.19, .23, .21] },
       { at: [.52, .38, 0], size: [.11, .16, .12] },
       { at: [.62, .58, 0], size: [.09, .15, .10] },
-    ], SHELL), bellyTone(.36)),
-    head: paint(blob([
+    ]), bellyTone(.36)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.17, .16, .15] },
       { at: [.20, -.05, 0], size: [.20, .11, .12] },
       { at: [.38, -.08, 0], size: [.10, .08, .09] },
       { at: [.18, -.14, 0], size: [.19, .06, .11] },
-    ], SHELL), bellyTone(.26, .25)),
+    ]), bellyTone(.26, .25)),
     // Steps down hard from the chest and keeps tapering. A tail base as thick
     // as the ribcage gives one unbroken sausage from nose to tip.
-    tail: paint(blob([
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.17, .19, .17] },
       { at: [-.30, .04, 0], size: [.11, .12, .11] },
       { at: [-.58, .09, 0], size: [.065, .07, .065] },
       { at: [-.84, .15, 0], size: [.03, .03, .03] },
-    ], SHELL), bellyTone(.3)),
+    ]), bellyTone(.3)),
     // A digitigrade zig-zag — thigh forward, shin back, foot forward again.
     // A straight diagonal from hip to toe reads as a flipper, which is most of
     // what made this thing look aquatic.
-    leg: paint(blob([
+    leg: paint(animalSurface([
       { at: [0, -.06, 0], size: [.21, .23, .20] },
       { at: [.14, -.32, 0], size: [.13, .16, .13] },
       { at: [.02, -.60, 0], size: [.09, .13, .09] },
       { at: [.16, -.76, 0], size: [.14, .055, .12] },
-    ], SHELL), bellyTone(.24)),
+    ]), bellyTone(.24)),
   };
 }
 
@@ -204,29 +189,29 @@ function buildStego() {
     // The back arches over high hips and drops away to low shoulders, which is
     // what lets the short front legs reach the ground from an attachment point
     // that is still inside the body.
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.42, .10, 0], size: [.40, .38, .38] },
       { at: [-.06, .12, 0], size: [.44, .40, .42] },
       { at: [.28, .02, 0], size: [.36, .34, .38] },
       { at: [.58, -.08, 0], size: [.26, .26, .30] },
       { at: [.78, -.14, 0], size: [.16, .16, .18] },
-    ], SHELL), bellyTone(.48)),
-    head: paint(blob([
+    ]), bellyTone(.48)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.13, .12, .13] },
       { at: [.16, -.03, 0], size: [.14, .09, .11] },
       { at: [.30, -.05, 0], size: [.08, .06, .08] },
-    ], SHELL), bellyTone(.2, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.2, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.32, .30, .30] },
       { at: [-.38, .04, 0], size: [.22, .21, .21] },
       { at: [-.72, .10, 0], size: [.14, .14, .14] },
       { at: [-1.0, .16, 0], size: [.08, .08, .08] },
-    ], SHELL), bellyTone(.4)),
-    leg: paint(blob([
+    ]), bellyTone(.4)),
+    leg: paint(animalSurface([
       { at: [0, -.08, 0], size: [.19, .22, .19] },
       { at: [.02, -.34, 0], size: [.15, .17, .15] },
       { at: [.05, -.54, 0], size: [.13, .10, .14] },
-    ], SHELL), bellyTone(.26)),
+    ]), bellyTone(.26)),
   };
 }
 
@@ -245,7 +230,7 @@ function makeStego(parts, materials) {
     [.50, .22, .08, .13], [.28, .38, -.08, .18], [.04, .50, .08, .23],
     [-.20, .55, -.08, .25], [-.44, .52, .08, .22], [-.66, .44, -.08, .17],
   ]) {
-    addMesh(body, FIN, materials.crest, [x, y, z], [0, 0, x * .3], [size * .8, size, .03]);
+    addMesh(body, plateGeometry, materials.crest, [x, y - .06, z], [0, 0, x * .3], [size * .9, size * 1.3, .5]);
   }
 
   const tail = new THREE.Group();
@@ -254,7 +239,7 @@ function makeStego(parts, materials) {
   body.add(tail);
   addMesh(tail, parts.tail, materials.limb);
   for (const [x, y, z, size] of [[-.18, .28, .08, .12], [-.40, .22, -.08, .09]]) {
-    addMesh(tail, FIN, materials.crest, [x, y, z], [0, 0, -.2], [size * .8, size, .03]);
+    addMesh(tail, plateGeometry, materials.crest, [x, y - .04, z], [0, 0, -.2], [size, size, .35]);
   }
   // Thagomizer.
   for (const [x, y, z, pitch] of [[-.86, .14, -.10, .5], [-.86, .14, .10, .5], [-.66, .18, -.12, .2], [-.66, .18, .12, .2]]) {
@@ -299,26 +284,26 @@ function buildPtero() {
   const hide = scales({ base: '#9a7f63', spot: '#4a3524', glow: '#d8c19c', seed: 41 });
   return {
     hide,
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.22, 0, 0], size: [.20, .18, .18] },
       { at: [.02, .02, 0], size: [.24, .22, .22] },
       { at: [.24, .08, 0], size: [.16, .16, .15] },
       { at: [.38, .22, 0], size: [.10, .14, .10] },
-    ], SHELL), bellyTone(.3)),
-    head: paint(blob([
+    ]), bellyTone(.3)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.13, .13, .12] },
       { at: [.22, -.04, 0], size: [.22, .07, .07] },   // long beak
       { at: [.44, -.06, 0], size: [.14, .04, .05] },
       { at: [-.14, .12, 0], size: [.18, .13, .04] },   // backward head crest
-    ], SHELL), bellyTone(.22, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.22, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.12, .12, .12] },
       { at: [-.22, .03, 0], size: [.06, .06, .06] },
-    ], SHELL), bellyTone(.2)),
-    leg: paint(blob([
+    ]), bellyTone(.2)),
+    leg: paint(animalSurface([
       { at: [0, -.06, 0], size: [.08, .12, .08] },
       { at: [.03, -.24, 0], size: [.05, .09, .05] },
-    ], SHELL), bellyTone(.16)),
+    ]), bellyTone(.16)),
   };
 }
 
@@ -374,27 +359,27 @@ function buildTrike() {
   const hide = scales({ base: '#8d6a53', spot: '#3d2718', glow: '#cfa982', seed: 63 });
   return {
     hide,
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.46, .02, 0], size: [.36, .34, .36] },
       { at: [-.10, .08, 0], size: [.44, .42, .44] },
       { at: [.28, .04, 0], size: [.42, .40, .44] },
       { at: [.64, -.02, 0], size: [.28, .30, .32] },
-    ], SHELL), bellyTone(.48)),
-    head: paint(blob([
+    ]), bellyTone(.48)),
+    head: paint(animalSurface([
       { at: [0, .02, 0], size: [.26, .24, .26] },
       { at: [.26, -.06, 0], size: [.22, .14, .16] },   // beak
       { at: [.42, -.10, 0], size: [.12, .08, .09] },
-    ], SHELL), bellyTone(.24, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.24, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.26, .25, .25] },
       { at: [-.30, .04, 0], size: [.17, .17, .17] },
       { at: [-.56, .09, 0], size: [.09, .09, .09] },
-    ], SHELL), bellyTone(.36)),
-    leg: paint(blob([
+    ]), bellyTone(.36)),
+    leg: paint(animalSurface([
       { at: [0, -.08, 0], size: [.20, .22, .20] },
       { at: [.02, -.34, 0], size: [.16, .18, .16] },
       { at: [.05, -.54, 0], size: [.14, .10, .15] },
-    ], SHELL), bellyTone(.26)),
+    ]), bellyTone(.26)),
   };
 }
 
@@ -420,18 +405,18 @@ function makeTrike(parts, materials) {
 
   // The frill: one broad flattened dome behind the skull, scalloped by a ring
   // of smaller ones so the edge does not read as a dinner plate.
-  addMesh(head, FIN, materials.crest, [-.16, .12, 0], [0, 0, .35], [.30, .46, .48]);
-  for (let i = 0; i < 7; i++) {
-    const t = (i / 6 - .5) * 2;
-    addMesh(head, FIN, materials.crest, [-.22, .12 + t * .3, t * .34], [0, 0, .35], [.16, .1, .1]);
+  addMesh(head, FIN, materials.crest, [-.16, .12, 0], [0, 0, .2], [.13, .46, .48]);
+  for (let i = 0; i < 9; i++) {
+    const a = i / 8 * Math.PI;
+    addMesh(head, FIN, materials.crest, [-.18, .12 + Math.sin(a) * .40, Math.cos(a) * .42], [0, 0, .2], [.10, .095, .095]);
   }
 
   // Two brow horns and a nose horn.
   for (const z of [-.14, .14]) {
-    addMesh(head, SPIKE, materials.crest, [.22, .26, z], [0, 0, -.55], [.055, .38, .055]);
+    addMesh(head, SPIKE, materials.tooth, [.22, .26, z], [0, 0, -.55], [.055, .38, .055]);
     addMesh(head, BEAD, materials.eye, [.16, .02, z * 1.3], [0, 0, 0], [.04, .04, .04]);
   }
-  addMesh(head, SPIKE, materials.crest, [.40, .06, 0], [0, 0, -.3], [.05, .22, .05]);
+  addMesh(head, SPIKE, materials.tooth, [.40, .06, 0], [0, 0, -.3], [.05, .22, .05]);
 
   const legs = [];
   for (const [x, y, z, scale] of [
@@ -457,27 +442,27 @@ function buildAnky() {
   const hide = scales({ base: '#6f6a4a', spot: '#2f2a18', glow: '#b3ab84', seed: 77 });
   return {
     hide,
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.44, 0, 0], size: [.40, .30, .42] },
       { at: [-.06, .06, 0], size: [.52, .36, .54] },
       { at: [.32, .02, 0], size: [.44, .32, .46] },
       { at: [.66, -.04, 0], size: [.26, .24, .28] },
-    ], SHELL), bellyTone(.5)),
-    head: paint(blob([
+    ]), bellyTone(.5)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.22, .18, .24] },
       { at: [.20, -.03, 0], size: [.18, .13, .18] },
-    ], SHELL), bellyTone(.22, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.22, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.24, .22, .24] },
       { at: [-.30, .02, 0], size: [.16, .15, .16] },
       { at: [-.56, .04, 0], size: [.11, .11, .11] },
       { at: [-.76, .06, 0], size: [.19, .18, .19] },   // the club
-    ], SHELL), bellyTone(.38)),
-    leg: paint(blob([
+    ]), bellyTone(.38)),
+    leg: paint(animalSurface([
       { at: [0, -.06, 0], size: [.19, .17, .19] },
       { at: [.02, -.26, 0], size: [.16, .14, .16] },
       { at: [.04, -.40, 0], size: [.15, .08, .16] },
-    ], SHELL), bellyTone(.26)),
+    ]), bellyTone(.26)),
   };
 }
 
@@ -485,7 +470,7 @@ function makeAnky(parts, materials) {
   const group = new THREE.Group();
 
   const body = new THREE.Group();
-  body.position.y = .72;
+  body.position.y = .67;
   group.add(body);
   addMesh(body, parts.torso, materials.body);
 
@@ -495,7 +480,7 @@ function makeAnky(parts, materials) {
     const width = .34 + Math.sin((row / 4) * Math.PI) * .16;
     addMesh(body, FIN, materials.crest, [x, .30, 0], [0, 0, 0], [.13, .09, width]);
     for (const side of [-1, 1]) {
-      addMesh(body, SPIKE, materials.crest, [x, .12, side * (width + .12)], [0, 0, -side * 1.3], [.05, .2, .05]);
+      addMesh(body, SPIKE, materials.crest, [x, .12, side * (width + .12)], [side * 1.3, 0, 0], [.05, .2, .05]);
     }
   }
 
@@ -533,32 +518,32 @@ function buildRex() {
   const hide = scales({ base: '#6b5340', spot: '#2a1c12', glow: '#b39070', seed: 5 });
   return {
     hide,
-    torso: paint(blob([
+    torso: paint(animalSurface([
       { at: [-.52, .06, 0], size: [.36, .40, .36] },
       { at: [-.10, 0, 0], size: [.42, .48, .44] },
       { at: [.32, .10, 0], size: [.44, .50, .46] },
       { at: [.68, .28, 0], size: [.30, .38, .34] },
       { at: [.92, .62, 0], size: [.19, .28, .21] },
       { at: [1.04, .98, 0], size: [.16, .26, .18] },
-    ], SHELL), bellyTone(.5)),
-    head: paint(blob([
+    ]), bellyTone(.5)),
+    head: paint(animalSurface([
       { at: [0, 0, 0], size: [.28, .26, .25] },
       { at: [.30, -.04, 0], size: [.32, .19, .21] },
       { at: [.58, -.08, 0], size: [.18, .13, .15] },
       { at: [.28, -.20, 0], size: [.30, .09, .19] },
-    ], SHELL), bellyTone(.3, .25)),
-    tail: paint(blob([
+    ]), bellyTone(.3, .25)),
+    tail: paint(animalSurface([
       { at: [0, 0, 0], size: [.32, .34, .32] },
       { at: [-.46, .06, 0], size: [.23, .24, .23] },
       { at: [-.88, .14, 0], size: [.14, .14, .14] },
       { at: [-1.24, .24, 0], size: [.07, .07, .07] },
-    ], SHELL), bellyTone(.4)),
-    leg: paint(blob([
+    ]), bellyTone(.4)),
+    leg: paint(animalSurface([
       { at: [0, -.08, 0], size: [.30, .34, .29] },
       { at: [.20, -.46, 0], size: [.19, .23, .19] },
       { at: [.03, -.86, 0], size: [.13, .18, .13] },
       { at: [.24, -1.08, 0], size: [.20, .08, .18] },
-    ], SHELL), bellyTone(.3)),
+    ]), bellyTone(.3)),
   };
 }
 
@@ -571,7 +556,7 @@ function makeRex(parts, materials) {
   group.scale.setScalar(1.35);
 
   const body = new THREE.Group();
-  body.position.y = 1.46;
+  body.position.y = 1.43;
   group.add(body);
   addMesh(body, parts.torso, materials.body);
 
@@ -614,7 +599,7 @@ function makeRex(parts, materials) {
 
 const BUILDERS = {
   compy: { build: buildCompy, make: makeCompy, crest: 0x4d5a2c },
-  dilo: { build: buildDilo, make: makeDilo, crest: 0xb4452f },
+  dilo: { build: buildDilo, make: makeDilo, crest: 0x975744 },
   stego: { build: buildStego, make: makeStego, crest: 0x6d5330 },
   ptero: { build: buildPtero, make: makePtero, crest: 0x7a5f45 },
   trike: { build: buildTrike, make: makeTrike, crest: 0x59392a },
@@ -623,7 +608,7 @@ const BUILDERS = {
 };
 
 // Species geometry is built the first time it is actually needed, not all at
-// boot. Seven species of blob() is several seconds of ray-marching on a phone,
+// boot. Sampling all seven species up front delays the first frame on a phone,
 // and spending it up front buys a blank screen before anything is on the water —
 // when wave one only ever needs Compsognathus.
 //
@@ -644,13 +629,34 @@ export function createDinoKit() {
       entry,
       parts,
       prototypes: {
-        body: hideMaterial(parts.hide, [2, 1.6]),
-        limb: hideMaterial(parts.hide, [1.4, 1.1]),
+        body: hideMaterial(parts.hide, [2, 1.6], { bumpScale: .035, roughness: .78 }),
+        limb: hideMaterial(parts.hide, [1.4, 1.1], { bumpScale: .025, roughness: .8 }),
+        limbDetail: hideMaterial(parts.hide, [1, 1], { bumpScale: .025, roughness: .8, vertexColors: false }),
         eye: new THREE.MeshStandardMaterial({ color: 0x140d07, roughness: .3 }),
         crest: new THREE.MeshStandardMaterial({ color: entry.crest, roughness: .6 }),
         tooth: new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: .45 }),
+        iris: new THREE.MeshStandardMaterial({ color: 0xcda153, roughness: .32 }),
+        mouth: new THREE.MeshStandardMaterial({ color: 0x322219, roughness: .95 }),
+        membrane: new THREE.MeshStandardMaterial({ color: 0x9c7758, roughness: .87, side: THREE.DoubleSide }),
       },
     };
+    // The colour pattern follows anatomy rather than the texture UV seam.
+    const backTone = new THREE.Color(.7, .75, .64);
+    for (const name of ['torso', 'head', 'tail', 'leg']) {
+      const geometry = parts[name];
+      geometry.computeBoundingBox();
+      const { min, max } = geometry.boundingBox;
+      paint(geometry, (shade, point) => {
+        const height = (point.y - min.y) / (max.y - min.y);
+        const stripe = Math.pow(Math.max(0, Math.sin(point.x * 15 + Math.sin(point.z * 14) * 1.4)), 5);
+        const shadeTop = THREE.MathUtils.smoothstep(height, .25, .85);
+        shade.setRGB(1.22, 1.16, .98).lerp(backTone, shadeTop);
+        shade.multiplyScalar(1 - stripe * shadeTop * .3);
+      });
+    }
+    record.template = entry.make(parts, record.prototypes);
+    detailDino(id, record.template, record.prototypes);
+    batchParts(record.template.group);
     built.set(id, record);
     return record;
   }
@@ -661,16 +667,17 @@ export function createDinoKit() {
       // Fresh materials per individual so a hit flashes one dinosaur, not the
       // whole species. `skins` is the subset a flash should tint.
       spawn() {
-        const { entry, parts, prototypes } = ensure(id);
-        const materials = {
-          body: prototypes.body.clone(),
-          limb: prototypes.limb.clone(),
-          eye: prototypes.eye,
-          crest: prototypes.crest.clone(),
-          tooth: prototypes.tooth,
-        };
-        const rig = entry.make(parts, materials);
-        rig.skins = [materials.body, materials.limb, materials.crest];
+        const { template, prototypes } = ensure(id);
+        const group = template.group.clone(true);
+        const originals = [], copies = [];
+        template.group.traverse(object => originals.push(object));
+        group.traverse(object => copies.push(object));
+        const objects = new Map(originals.map((object, i) => [object, copies[i]]));
+        const materials = new Map(['body', 'limb', 'limbDetail', 'crest', 'membrane'].map(name => [prototypes[name], prototypes[name].clone()]));
+        group.traverse(object => { if (materials.has(object.material)) object.material = materials.get(object.material); });
+        const rig = { group, muzzle: template.muzzle, legs: template.legs.map(leg => objects.get(leg)) };
+        for (const name of ['body', 'head', 'tail']) rig[name] = objects.get(template[name]);
+        rig.skins = [...materials.values()];
         return rig;
       },
     };

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { batchParts } from '../scene/geometry.js';
 
 /* --------------------------------------------------------------------------
    The storage ladder. Damage climbs with modernity, ammo falls, and each tier
@@ -101,11 +102,35 @@ const metal = new THREE.MeshStandardMaterial({ color: 0xa9b0b6, roughness: .32, 
 const paper = new THREE.MeshStandardMaterial({ color: 0xd8cfae, roughness: .9 });
 const platter = new THREE.MeshStandardMaterial({ color: 0xd6dde2, roughness: .12, metalness: .95 });
 const spool = new THREE.MeshStandardMaterial({ color: 0x1d1a16, roughness: .7 });
+const gold = new THREE.MeshStandardMaterial({ color: 0xc5a65b, metalness: .65, roughness: .35 });
+const pcb = new THREE.MeshStandardMaterial({ color: 0x376554, roughness: .65, metalness: .15 });
+const blue = new THREE.MeshStandardMaterial({ color: 0x376784, roughness: .42 });
+const cloudSkin = new THREE.MeshStandardMaterial({ color: 0xdbe5de, roughness: .96, emissive: 0x334b50, emissiveIntensity: .3 });
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+const puff = new THREE.SphereGeometry(1, 14, 10);
+const discRing = new THREE.RingGeometry(.035, .25, 32);
+discRing.rotateX(-Math.PI / 2);
+const discColors = [];
+const discColor = new THREE.Color();
+for (let i = 0; i < discRing.attributes.position.count; i++) {
+  const p = discRing.attributes.position;
+  discColor.setHSL((Math.atan2(p.getZ(i), p.getX(i)) / (Math.PI * 2) + 1) % 1, .25, .75);
+  discColors.push(discColor.r, discColor.g, discColor.b);
+}
+discRing.setAttribute('color', new THREE.Float32BufferAttribute(discColors, 3));
+const discSkin = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .24, metalness: .4, side: THREE.DoubleSide });
+const groove = new THREE.TorusGeometry(.19, .002, 4, 32);
+groove.rotateX(Math.PI / 2);
+
+function block(group, material, position, scale) {
+  const object = mount(group, unitBox, material, position);
+  object.scale.set(...scale);
+  return object;
+}
 
 const shell = new THREE.BoxGeometry(.42, .05, .42);
 const shutter = new THREE.BoxGeometry(.17, .022, .13);
 const label = new THREE.BoxGeometry(.26, .02, .16);
-const disc = new THREE.CylinderGeometry(.25, .25, .018, 22);
 const hub = new THREE.CylinderGeometry(.07, .07, .026, 14);
 const caseBody = new THREE.BoxGeometry(.46, .12, .30);
 const reel = new THREE.CylinderGeometry(.09, .09, .13, 14);
@@ -126,22 +151,54 @@ const BUILD = {
     mount(group, shell, plastic);
     mount(group, shutter, metal, [.12, .036, 0]);
     mount(group, label, paper, [-.06, .036, 0]);
+    for (let i = 0; i < 3; i++) block(group, blue, [-.06, .047, -.045 + i * .035], [.18, .003, .006]);
+    block(group, spool, [.12, .05, .01], [.035, .006, .07]);
+    for (const z of [-.16, .16]) block(group, spool, [-.17, .029, z], [.024, .004, .028]);
   },
   // Flat, mirror-bright, and it flies edge-on so the disc face catches the key.
   cd(group) {
-    mount(group, disc, platter);
-    mount(group, hub, spool, [0, .012, 0]);
+    mount(group, discRing, discSkin);
+    mount(group, groove, metal, [0, .003, 0]);
+    const ring = mount(group, groove, blue, [0, .004, 0]); ring.scale.setScalar(.62);
   },
   tape(group) {
     mount(group, caseBody, plastic);
-    mount(group, reel, spool, [-.11, .07, 0]);
-    mount(group, reel, spool, [.11, .07, 0]);
-    mount(group, label, paper, [0, .065, 0]);
+    for (const x of [-.11, .11]) {
+      mount(group, reel, spool, [x, .015, 0]);
+      const centre = mount(group, hub, paper, [x, .087, 0]); centre.scale.set(.6, .4, .6);
+      for (let i = 0; i < 3; i++) block(group, spool, [x + Math.cos(i * 2.094) * .023, .094, Math.sin(i * 2.094) * .023], [.014, .003, .014]);
+    }
+    block(group, paper, [0, .066, -.115], [.34, .006, .04]);
+    block(group, metal, [0, .005, .151], [.15, .035, .008]);
   },
   hdd(group) {
     mount(group, driveBody, metal);
-    mount(group, driveTop, platter, [0, .075, 0]);
-    mount(group, hub, spool, [0, .09, 0]);
+    block(group, spool, [0, .067, 0], [.36, .008, .26]);
+    const disk = mount(group, driveTop, platter, [-.035, .079, 0]); disk.scale.setScalar(1.08);
+    const centre = mount(group, hub, metal, [-.035, .095, 0]); centre.scale.set(.43, .5, .43);
+    const arm = block(group, metal, [.08, .103, .04], [.17, .016, .026]); arm.rotation.y = -.6;
+    for (const x of [-.175, .175]) for (const z of [-.125, .125]) block(group, spool, [x, .072, z], [.02, .008, .02]);
+  },
+  usb(group) {
+    block(group, blue, [-.045, 0, 0], [.32, .10, .16]);
+    block(group, metal, [.18, 0, 0], [.14, .075, .135]);
+    block(group, spool, [.252, .003, 0], [.003, .047, .10]);
+    for (const z of [-.035, .035]) block(group, spool, [.18, .04, z], [.038, .003, .02]);
+    block(group, paper, [-.045, .052, 0], [.16, .003, .018]);
+  },
+  ssd(group) {
+    block(group, pcb, [0, 0, 0], [.48, .025, .20]);
+    for (const x of [-.15, -.015, .12]) {
+      block(group, plastic, [x, .029, 0], [.095, .035, .13]);
+      for (const z of [-.078, .078]) block(group, metal, [x, .02, z], [.085, .009, .013]);
+    }
+    for (let i = 0; i < 7; i++) block(group, gold, [.232, .015, -.077 + i * .024], [.04, .007, .015]);
+    block(group, paper, [-.15, .048, 0], [.07, .003, .065]);
+  },
+  cloud(group) {
+    for (const [x, y, z, size] of [[-.18, 0, 0, .17], [0, .08, 0, .22], [.2, .02, 0, .16], [0, -.025, .1, .16], [0, -.025, -.1, .16]]) {
+      const ball = mount(group, puff, cloudSkin, [x, y, z]); ball.scale.setScalar(size);
+    }
   },
 };
 
@@ -149,19 +206,35 @@ const BUILD = {
 // emissive as well as lit, because a shot flying out of the fog at Jerry has to
 // be readable before it is close enough for the key light to reach it.
 const sheet = new THREE.BoxGeometry(.34, .022, .26);
-const band = new THREE.BoxGeometry(.34, .006, .07);
 
 function buildPage(format, group) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const c = canvas.getContext('2d');
+  const tint = '#' + new THREE.Color(format.tint).getHexString();
+  c.fillStyle = '#e8e1cc'; c.fillRect(0, 0, 128, 128);
+  c.fillStyle = tint; c.fillRect(0, 0, 128, 37);
+  c.fillStyle = '#17261e'; c.font = 'bold 26px monospace'; c.fillText(format.name, 9, 28);
+  c.fillStyle = '#737c6d';
+  if (format.id === 'xls' || format.id === 'csv') {
+    for (let x = 12; x < 120; x += 25) c.fillRect(x, 49, 2, 65);
+    for (let y = 49; y < 120; y += 16) c.fillRect(12, y, 101, 2);
+  } else if (format.id === 'zip') {
+    for (let y = 46; y < 119; y += 10) c.fillRect(y % 20 ? 58 : 66, y, 9, 7);
+  } else if (format.id === 'iso') {
+    c.beginPath(); c.arc(64, 80, 29, 0, Math.PI * 2); c.strokeStyle = tint; c.lineWidth = 9; c.stroke();
+    c.beginPath(); c.arc(64, 80, 6, 0, Math.PI * 2); c.stroke();
+  } else {
+    for (let y = 51; y < 117; y += 13) c.fillRect(13, y, y % 3 ? 94 : 64, 4);
+  }
+  c.fillStyle = '#fff5df'; c.beginPath(); c.moveTo(104, 128); c.lineTo(104, 104); c.lineTo(128, 104); c.fill();
+  const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
   mount(group, sheet, new THREE.MeshStandardMaterial({
-    color: 0xf0ead8,
+    map,
+    color: 0xffffff,
     roughness: .85,
     emissive: new THREE.Color(format.tint).multiplyScalar(.25),
   }));
-  mount(group, band, new THREE.MeshStandardMaterial({
-    color: format.tint,
-    roughness: .5,
-    emissive: new THREE.Color(format.tint).multiplyScalar(.6),
-  }), [0, .016, -.088]);
 }
 
 // Tiers without a silhouette yet fall back to a tinted slug rather than
@@ -181,6 +254,7 @@ export function projectileMesh(spec) {
     if (pageIds.has(spec.id)) buildPage(spec, group);
     else if (BUILD[spec.id]) BUILD[spec.id](group);
     else buildGeneric(spec, group);
+    batchParts(group);
     prototypes.set(spec.id, group);
   }
   return prototypes.get(spec.id).clone();
