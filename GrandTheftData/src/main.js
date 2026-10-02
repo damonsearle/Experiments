@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import './style.css';
 import { createJerry } from './jerry.js';
+import { createScenery } from './scenery.js';
 
 const canvas = document.querySelector('#game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -13,8 +14,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07110f);
-scene.fog = new THREE.FogExp2(0x07110f, 0.038);
+scene.background = new THREE.Color(0x16342d);
+scene.fog = new THREE.FogExp2(0x16342d, 0.024);
 
 const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 120);
 
@@ -35,11 +36,6 @@ const rim = new THREE.PointLight(0xff5936, 24, 20);
 rim.position.set(5, 2, -5);
 scene.add(rim);
 
-const materials = {
-  accent: new THREE.MeshStandardMaterial({ color: 0xc7ff38, roughness: .68, metalness: .05 }),
-  cream: new THREE.MeshStandardMaterial({ color: 0xf4f2e9, roughness: .72 }),
-};
-
 function mesh(geometry, material, parent, position, rotation = [0, 0, 0]) {
   const part = new THREE.Mesh(geometry, material);
   part.position.set(...position);
@@ -52,23 +48,7 @@ function mesh(geometry, material, parent, position, rotation = [0, 0, 0]) {
 
 const jerry = createJerry(scene);
 
-const ground = mesh(new THREE.PlaneGeometry(200, 18), new THREE.MeshStandardMaterial({ color: 0x0b1915, roughness: .95 }), scene, [0, -.02, 0], [-Math.PI / 2, 0, 0]);
-ground.receiveShadow = true;
-
-const grid = new THREE.GridHelper(200, 130, 0x345d45, 0x173126);
-grid.position.y = .015;
-grid.material.opacity = .32;
-grid.material.transparent = true;
-scene.add(grid);
-
-const horizonLines = new THREE.Group();
-for (let i = 0; i < 18; i++) {
-  const bar = mesh(new THREE.BoxGeometry(.025, Math.random() * 4 + .5, .025), materials.accent, horizonLines, [Math.random() * 40 - 10, Math.random() * 2, -8 - Math.random() * 10]);
-  bar.material = bar.material.clone();
-  bar.material.transparent = true;
-  bar.material.opacity = .12 + Math.random() * .18;
-}
-scene.add(horizonLines);
+const scenery = createScenery(scene, { lean: matchMedia('(pointer: coarse)').matches });
 
 const fileTypes = [
   { ext: '.CSV', color: 0xc7ff38 }, { ext: '.PDF', color: 0xff5a36 },
@@ -102,13 +82,6 @@ function spawnObstacle(x = 12) {
   group.position.set(x, 0, (Math.random() - .5) * .25);
   group.userData = { type, cleared: false, hit: false, radius: .48, card, tab };
   scene.add(group); obstacles.push(group);
-}
-
-const dust = [];
-for (let i = 0; i < 55; i++) {
-  const dot = mesh(new THREE.BoxGeometry(.025, .025, .025), materials.cream, scene, [Math.random() * 30 - 8, Math.random() * 3.5, Math.random() * 10 - 8]);
-  dot.material = dot.material.clone(); dot.material.transparent = true; dot.material.opacity = Math.random() * .3;
-  dust.push(dot);
 }
 
 const ui = {
@@ -204,8 +177,6 @@ function update(dt) {
   jerry.propeller.rotation.y += dt * (10 + speed * .8);
   jerry.group.rotation.z = THREE.MathUtils.lerp(jerry.group.rotation.z, jerry.velocity * -.012, .1);
 
-  grid.position.x = (grid.position.x - speed * dt) % (200 / 130);
-  dust.forEach(dot => { dot.position.x -= speed * dt * .2; if (dot.position.x < -9) dot.position.x = 22; });
   spawnTimer -= dt;
   if (spawnTimer <= 0) { spawnObstacle(); spawnTimer = Math.max(.88, 1.75 - speed * .055) + Math.random() * .48; }
 
@@ -262,6 +233,7 @@ function animate() {
     jerry.head.rotation.z = Math.sin(elapsed * 1.6) * .03;
     jerry.propeller.rotation.y += dt * 2.4;
   }
+  if (state === 'running' || state === 'ready') scenery.update(dt, state === 'running' ? speed : 0);
   const wanted = state === 'ready' ? inspectPose : runPose;
   const ease = 1 - Math.pow(.05, dt);
   pose.position.lerp(wanted.position, ease);
