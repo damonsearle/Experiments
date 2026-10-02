@@ -3,8 +3,8 @@ import { createJerry, showJerryLoading } from '../creature/jerry.js';
 import { ARSENAL } from './weapons.js';
 
 const SPEED = 8.2;
-const ACCEL = 58;
-const FRICTION = 42;
+const ACCEL = 95;
+const FRICTION = 120;
 const GRAVITY = 26;
 const JUMP = 9.4;
 const RADIUS = .85;
@@ -226,7 +226,9 @@ export function createPlayer(scene) {
     group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, -gait * .07 - player.liftVelocity * .012, .12);
   }
 
-  player.update = (dt, input, aimPoint, arena) => {
+  player.aim = aimPoint => { if (player.alive) face(aimPoint); };
+
+  player.update = (dt, input, arena) => {
     if (!player.alive) {
       // Topple backwards into the mud. The propeller keeps turning, because of
       // course it does.
@@ -260,6 +262,7 @@ export function createPlayer(scene) {
     const rate = wanted.lengthSq() > 0 ? ACCEL : FRICTION;
     velocity.x = THREE.MathUtils.damp(velocity.x, wanted.x, rate / SPEED, dt);
     velocity.z = THREE.MathUtils.damp(velocity.z, wanted.z, rate / SPEED, dt);
+    if (wanted.lengthSq() === 0 && velocity.lengthSq() < .0064) velocity.set(0, 0, 0);
 
     group.position.x += velocity.x * dt;
     group.position.z += velocity.z * dt;
@@ -286,7 +289,6 @@ export function createPlayer(scene) {
     group.position.y = player.lift;
 
     collide(arena);
-    face(aimPoint);
     animate(dt);
 
     player.x = group.position.x;

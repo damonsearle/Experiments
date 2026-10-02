@@ -95,46 +95,35 @@ Projectile colours reuse the Data Dash file-type palette so the two games share 
 
 ### 4.1 Camera and control
 
-**Recommended: a 3/4 follow camera**, ~50° above the horizon, tracking Jerry with positional lag.
-Reasons: free movement in all directions needs to read clearly; the arena and incoming projectiles
-need to be legible; and it keeps the whole of Jerry on screen, which matters given how much work
-went into the model. Over-the-shoulder would hide him and make swarms unreadable.
+**Fixed-orientation arena camera**, looking down at 50 degrees. It follows Jerry's
+horizontal position with a short, frame-rate-independent lag. Facing, aiming and
+jumping never rotate or lift the camera. Portrait screens widen the vertical field
+and pull back enough to keep at least 17 units of combat width visible at the focus.
 
 | Input | Action |
 |---|---|
-| `WASD` / arrows | Move, camera-relative |
-| Mouse | Aim — Jerry turns to face the ground point under the cursor |
+| `WASD` / arrows | Move in screen directions |
+| Mouse | Aim independently of movement |
 | Left click | Shoot |
+| `IJKL` | Aim and shoot without a mouse |
 | `Space` | Jump |
 | `1`–`7` / scroll / tap a chip | Switch storage tier |
-| `Q` / `E` | Turn the view |
-| `C` | Swing the view round behind Jerry |
-| `Shift` | Dodge roll (brief i-frames) — stretch |
 | `P` | Pause |
-| Left stick | Run. Jerry turns to face the way he runs, and the camera follows him round |
-| Throw pad | Throw while held |
+| Left touch stick | Move |
+| Right touch stick | Aim and shoot while dragged outside the dead zone |
 | Jump pad | Jump |
 
-The stick is drawn permanently in the bottom-left with a label, and slides to meet the
-thumb on contact — the home position advertises where the control is rather than being
-a target you have to hit.
+Both touch sticks are visible and float to meet the thumb. Each pointer keeps its
+role until release, even across the middle of the screen. Releasing movement brakes
+quickly; releasing aim stops shooting and preserves the last world aim direction.
+Movement never substitutes for aiming, so Jerry can retreat while firing forwards.
+Pause and focus loss clear controls; cancelled pointers and resize release active touches.
 
-> **There was a second stick here that aimed, and it had to go.** Holding it turned Jerry,
-> the camera followed him round, and so the same thumb position kept on turning him:
-> dragging a little too far span you on the spot. Steering with the left stick alone has
-> none of that, and costs only the ability to shoot behind yourself. Aiming and throwing
-> are separate on a keyboard, where there are thumbs to spare; on touch, running *is*
-> aiming.
-
-Keyboard-only fallback: arrows move, `IJKL` aims twin-stick style. **Both this and
-the touch controls shipped after M3**, pulled forward out of M6 — they are the same
-problem (aiming without a mouse) and were cheaper to solve once, together, while the
-aim system was still small.
-
-Aim arrives in one of two shapes and the rest of the game must not care which: a mouse
-gives a *point* to resolve against the ground, a stick gives a *direction* and no point
-at all. `input.aimMode` says which is live and `main.js` resolves both to the same aim
-point, so the player and the reticle never learn there is more than one kind.
+The old rotating chase camera is removed, including `Q`/`E` and `C`. It created a
+feedback loop: turning towards a screen-relative aim changed the camera bearing,
+which changed that aim again, even after the thumb had stopped moving. Twin sticks
+are predictable with a fixed bearing. Mouse picking uses the updated camera and
+player position for the current frame.
 
 ### 4.2 Movement and collision
 
@@ -190,7 +179,7 @@ A prehistoric swamp that is also, quietly, a data centre that lost.
 - **Ruins:** server racks half-sunk in the swamp, floating punch cards, cable vines, and a
   monolithic dead mainframe as the arena's centrepiece and hard cover.
 - **Atmosphere:** heavy fog, drifting spores, and the volcano as a warm directional rim only.
-  ~~glowing on the horizon~~ — **not possible with this camera.** At ~31° down and a 45° field, the
+  ~~glowing on the horizon~~ — **not possible with this camera.** At ~50° down, even the wider portrait field's
   visible band stops several degrees *below* the horizontal, so the sky and the horizon are never on
   screen at any distance. A mountain tall enough to see is a mountain above the top of the frame.
   The light it throws is the part that survives, and it was the part doing the work anyway.
@@ -309,33 +298,14 @@ starts popping shadows in and out at the edge of the play area.
 All five are now decided. Recorded here rather than deleted, because the reasoning is what stops
 them being reopened by accident later.
 
-1. **Camera — 3/4 follow, yaw pinned under mouse and following under stick.** The distance and the
-   ~31° pitch never change, and over-the-shoulder stays rejected — it would hide the model and make
-   swarms unreadable. What changed after playing the touch build: a *pinned* yaw only works when you
-   can see where you are aiming. With a mouse you can, so it stays pinned. With a stick you cannot —
-   pointing somewhere off-camera is aiming blind — so there the camera swings round behind whatever
-   Jerry is facing, slower than he turns, so it trails the throw instead of whipping with it.
-
-   The original worry about a turning camera inverting the controls is handled by resolving every
-   screen intent — both sticks and `WASD` — against the camera's *current* yaw every frame, in
-   `main.js`. `player.js` only ever receives a world direction and never learns which way round the
-   view is.
-
-   > **Why mouse aim cannot have an automatic follow, however it is tuned.** The cursor sits at a
-   > fixed *screen* angle from centre, so the world direction under it is `camera yaw + that angle`.
-   > Rotate the camera towards it and the direction under the cursor moves by the same amount again.
-   > The view then turns forever, at a rate set by how far off-centre the cursor is, and the only
-   > stable cursor position is the exact centre of the screen. This is a property of the loop, not a
-   > damping value that has not been found yet — no easing, dead zone or lag removes it.
-   >
-   > So under mouse aim the view is *driven* instead: `Q`/`E` turn it and `C` swings it round behind
-   > Jerry. Both are inputs of their own, which is precisely what breaks the loop. The same loop is
-   > what killed the touch aim stick — see §4.1.
-2. **Aiming — mouse primary, twin-stick alongside it.** The mouse stays the precise, desktop-first
-   scheme the pinpoint tiers (USB, SSD) are designed around. The twin-stick fallback was originally
-   deferred to M6 and then **pulled forward and shipped after M3**, on the grounds that touch and
-   `IJKL` are one problem, not two, and the aim system was at its smallest right then. What remains
-   of M6 is the perf pass.
+1. **Camera — fixed orientation with ground tracking.** The previous chase camera
+   changed the meaning of held stick input as it rotated. The camera now translates
+   without yawing, follows the ground rather than jump height, and shows more combat
+   space in portrait. Manual rotation and recenter controls are removed.
+2. **Aiming — independent of movement on every device.** Mouse aiming and touch twin
+   sticks share the same fixed screen basis. The right stick or `IJKL` aims and fires;
+   releasing it keeps the last world-facing direction. Left-stick movement never
+   changes aim. See §4.1 for the current controls and the superseded feedback loop.
 3. **Art direction — grubby and organic.** The HUD extends the existing mud/bone/tannin/amber chrome:
    serif title, hairline rules, and saturation reserved for projectiles and pickups so they stay the
    only loud things on screen. Data Dash's neon-brutalist HUD is rejected — it would compete with the

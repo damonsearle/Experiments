@@ -171,7 +171,9 @@ kbd,
   transition: transform .18s ease-out, border-color .12s;
 }
 
-#stick-move { left: 1.6rem; }
+#stick-move { left: max(1.6rem, env(safe-area-inset-left)); }
+#stick-aim { right: max(1.6rem, env(safe-area-inset-right)); }
+.stick.live.firing { border-color: var(--amber); background: rgba(210, 166, 63, .14); }
 
 #touch.on .stick { display: block; }
 
@@ -208,11 +210,7 @@ kbd,
   white-space: nowrap;
 }
 
-/* Sat over dark water, so it needs a real edge and a real fill — the hairline
-   rules that work on the chrome disappear entirely out here. */
-/* Both pads sit under the right thumb, throw nearest the corner because it is
-   the one held down. Sat over dark water, so they need a real edge and a real
-   fill — the hairline rules that work on the chrome disappear entirely here. */
+/* Jump stays above the aiming thumb, clear of the stick and weapon bar. */
 .tap {
   position: absolute;
   right: 2.4rem;
@@ -239,19 +237,12 @@ kbd,
   background: rgba(210, 166, 63, .22);
 }
 
-/* The one that gets held down, so it is the biggest and the easiest to find. */
-.tap-fire {
-  right: 1.5rem;
-  bottom: 7rem;
-  width: 6rem;
-  height: 6rem;
-  font-size: .7rem;
-  border-color: rgba(210, 166, 63, .45);
-}
-
 #touch.on .tap { display: grid; }
 
-#touch.on .tap { display: block; }
+@media (max-height: 500px) {
+  .stick { bottom: 4.5rem; width: 96px; height: 96px; }
+  .tap { bottom: 11.5rem; width: 3.5rem; height: 3.5rem; }
+}
 
 /* The key legend is dead weight once there is no keyboard, and the debug
    readout is the first thing to go when the footer runs out of room. */

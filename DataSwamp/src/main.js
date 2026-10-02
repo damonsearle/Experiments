@@ -3,6 +3,7 @@ import './style.css';
 import { createArena } from './scene/arena.js';
 import { createPlayer } from './game/player.js';
 import { createInput } from './game/input.js';
+import { createArenaCamera, screenToWorld } from './game/camera.js';
 import { createProjectiles, FLIGHT_Y } from './game/projectiles.js';
 import { createEnemies } from './game/enemies.js';
 import { createPickups, HEALTH_AMOUNT } from './game/pickups.js';
@@ -61,47 +62,12 @@ let paused = false;
 
 /* ---------------------------------------------------------------------- camera */
 
-// A 3/4 follow: fixed yaw, about 50 degrees above the horizon, trailing Jerry with lag.
-// The yaw stays fixed so that screen-up is always world -z and movement never inverts.
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 300);
-// ~31 degrees above the horizon. Steeper than this and Jerry reads as a hat seen from above;
-// shallower and the arena stops being legible.
-const CAMERA_DISTANCE = 11;
-const CAMERA_LIFT = 6.6;
-const LOOK_LIFT = 1.4;
-
-// Which way round the camera sits, as a yaw in Jerry's own convention. Mouse aim
-// pins it: you can see and click anywhere on screen, so the camera never needs to
-// turn, and a fixed yaw keeps screen-up welded to world -z so movement can never
-// invert. Stick aim cannot work that way — pointing somewhere off-camera would be
-// aiming blind — so there the camera swings round behind whatever Jerry is facing.
-//
-// PI/2 is the historical fixed view: camera on +z looking down -z.
-const PINNED_YAW = Math.PI / 2;
-const CAMERA_TURN = 1.9;      // radians per second on the view keys
-let cameraYaw = PINNED_YAW;
-let recentreTo = null;        // yaw the view is swinging to, or null
-
-const cameraGoal = new THREE.Vector3();
-const lookAt = new THREE.Vector3();
-const moveBasis = new THREE.Vector2();
-const offsetScratch = new THREE.Vector3();
-
-function cameraOffset(yaw, into) {
-  return into.set(-Math.cos(yaw) * CAMERA_DISTANCE, CAMERA_LIFT, Math.sin(yaw) * CAMERA_DISTANCE);
-}
-
-camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, new THREE.Vector3()));
-lookAt.copy(player.group.position);
-
-// Screen intent to world direction, against wherever the camera currently is.
-// Everything the player pushes — move stick, aim stick, WASD — goes through here,
-// so a turning camera can never leave the controls pointing the old way.
-function toWorld(x, y, into) {
-  const cos = Math.cos(cameraYaw);
-  const sin = Math.sin(cameraYaw);
-  return into.set(cos * y + sin * x, -sin * y + cos * x);
-}
+const cameraRig = createArenaCamera(camera);
+cameraRig.resize(innerWidth, innerHeight);
+cameraRig.reset(player.group.position);
+// Stored in world space, so releasing either stick cannot reinterpret facing.
+const aimDirection = new THREE.Vector2(1, 0);
 
 /* ------------------------------------------------------------------------- aim */
 
@@ -135,18 +101,18 @@ const AIM_REACH = 7;
 
 function updateAim() {
   if (input.aimMode === 'direction') {
-    // A stick vector is screen intent, so it resolves against the camera and
-    // needs no projection — there is no point on screen to project from.
-    toWorld(input.aim.x, input.aim.y, moveBasis);
+    if (input.aimActive) screenToWorld(input.aim.x, input.aim.y, aimDirection);
     aimPoint.set(
-      player.group.position.x + moveBasis.x * AIM_REACH,
+      player.group.position.x + aimDirection.x * AIM_REACH,
       FLIGHT_Y,
-      player.group.position.z + moveBasis.y * AIM_REACH,
+      player.group.position.z + aimDirection.y * AIM_REACH,
     );
   } else {
     raycaster.setFromCamera(input.pointer, camera);
-    // A ray parallel to the ground never lands; keep the previous point when that happens.
     if (!raycaster.ray.intersectPlane(aimPlane, aimPoint)) return;
+    const dx = aimPoint.x - player.group.position.x;
+    const dz = aimPoint.z - player.group.position.z;
+    if (dx * dx + dz * dz > .04) aimDirection.set(dx, dz).normalize();
   }
   reticle.position.set(aimPoint.x, .04, aimPoint.z);
 }
@@ -154,8 +120,7 @@ function updateAim() {
 /* ------------------------------------------------------------------------ loop */
 
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  cameraRig.resize(innerWidth, innerHeight);
   renderer.setSize(innerWidth, innerHeight);
 });
 
@@ -167,6 +132,8 @@ if (import.meta.env.DEV) {
     player,
     enemies,
     projectiles,
+    camera,
+    input,
     // Normalised device coords of a living enemy, or null if none are left standing.
     aimAt(index = 0) {
       const target = enemies.list.filter(enemy => enemy.alive)[index];
@@ -217,7 +184,15 @@ const tierChips = ARSENAL.map((weapon, index) => {
   return { weapon, item, ammo };
 });
 
-createTouch(input, document.querySelector('#touch'));
+const touch = createTouch(input, document.querySelector('#touch'), {
+  surface: canvas,
+  enabled: () => started && !paused && player.alive,
+});
+
+function resetControls() {
+  input.reset();
+  touch.reset();
+}
 
 let sinceReadout = 0;
 let veil = 0;
@@ -301,15 +276,16 @@ function restart() {
   projectiles.clear();
   pickups.reset();
   waves.reset();
-  cameraYaw = PINNED_YAW;
-  recentreTo = null;
-  camera.position.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
-  lookAt.copy(player.group.position);
+  resetControls();
+  input.aimMode = 'direction';
+  aimDirection.set(1, 0);
+  cameraRig.reset(player.group.position);
 }
 
 function begin() {
   if (started || !player.rig.loaded) return;
   started = true;
+  resetControls();
   startPanel.classList.remove('shown');
   // The gesture that dismissed the panel is the one that lets mobile browsers
   // start an AudioContext at all, so this is the only place it can happen.
@@ -319,6 +295,7 @@ function begin() {
 startPanel.classList.add('shown');
 startPanel.addEventListener('pointerdown', event => {
   event.preventDefault();
+  event.stopPropagation();
   begin();
 });
 
@@ -330,11 +307,11 @@ function setPaused(on) {
   paused = on;
   pausePanel.classList.toggle('shown', paused);
   // Let go of the throw, or Jerry resumes mid-burst having never released it.
-  input.firing = false;
-  input.stick.firing = false;
+  resetControls();
 }
 
 addEventListener('keydown', event => {
+  if (event.repeat) return;
   // "Press any key to begin" has to mean any key, including the ones that do
   // something else once the game is running.
   if (!started) {
@@ -348,6 +325,7 @@ addEventListener('keydown', event => {
 
 pausePanel.addEventListener('pointerdown', event => {
   event.preventDefault();
+  event.stopPropagation();
   setPaused(false);
 });
 
@@ -355,8 +333,9 @@ pausePanel.addEventListener('pointerdown', event => {
 // this, coming back to it hands the loop one enormous delta and teleports every
 // dinosaur onto Jerry at once.
 addEventListener('visibilitychange', () => {
-  if (document.hidden) setPaused(true);
+  if (document.hidden) { resetControls(); setPaused(true); }
 });
+addEventListener('blur', () => { resetControls(); setPaused(true); });
 
 // There is no R key on a phone, so the panel itself is the button.
 // Only the button restarts, not the whole overlay. The overlay covers the
@@ -384,13 +363,18 @@ function frame() {
     return;
   }
 
+  if (!started) {
+    player.rig.update();
+    renderer.render(scene, camera);
+    return;
+  }
+
   input.sample();
+  screenToWorld(input.move.x, input.move.y, input.worldMove);
+  player.update(dt, input, arena);
+  cameraRig.update(dt, player.group.position);
   updateAim();
-  // Resolve the move stick against the camera before the player ever sees it,
-  // so player.js stays a pure "go this way in the world" and never has to know
-  // which way round the view is.
-  toWorld(input.move.x, input.move.y, input.worldMove);
-  player.update(dt, input, aimPoint, arena);
+  player.aim(aimPoint);
   if (player.shoot(dt, input, projectiles)) audio.throw();
   projectiles.update(dt, {
     hostiles: enemies.list,
@@ -416,49 +400,6 @@ function frame() {
   arena.update(dt, player.group.position);
   if (started && player.alive) waves.update(dt);
   updateHud(dt);
-
-  // Frame-rate independent easing: the same fraction of the gap closes per second
-  // regardless of how often we tick.
-  const ease = 1 - Math.pow(.0006, dt);
-
-  // Under stick aim the view swings round behind Jerry on its own, slower than
-  // he turns so it trails the throw rather than whipping with it.
-  //
-  // Under mouse aim it cannot do that, and not for want of tuning. The cursor
-  // sits at a fixed *screen* angle from centre, so the world direction under it
-  // is (camera yaw + that angle). Rotate the camera to face it and the direction
-  // under the cursor moves by the same amount again — the view rotates forever
-  // at a rate set by how far off-centre the cursor is, and only a cursor exactly
-  // at the centre of the screen is stable. Any automatic follow here spins.
-  //
-  // So the view is driven instead: Q/E turn it, C swings it round behind Jerry.
-  // Both are inputs of their own, which is what breaks the loop.
-  if (input.aimMode === 'direction') {
-    let swing = player.group.rotation.y - cameraYaw;
-    swing = Math.atan2(Math.sin(swing), Math.cos(swing));
-    cameraYaw += swing * (1 - Math.pow(.06, dt));
-    recentreTo = null;
-  } else {
-    if (input.takeRecentre()) recentreTo = player.group.rotation.y;
-    if (input.camTurn) recentreTo = null;   // taking the wheel cancels the swing
-    cameraYaw += input.camTurn * CAMERA_TURN * dt;
-
-    if (recentreTo !== null) {
-      let swing = recentreTo - cameraYaw;
-      swing = Math.atan2(Math.sin(swing), Math.cos(swing));
-      if (Math.abs(swing) < .01) {
-        cameraYaw = recentreTo;
-        recentreTo = null;
-      } else {
-        cameraYaw += swing * (1 - Math.pow(.0005, dt));
-      }
-    }
-  }
-
-  cameraGoal.copy(player.group.position).add(cameraOffset(cameraYaw, offsetScratch));
-  camera.position.lerp(cameraGoal, ease);
-  lookAt.lerp(player.group.position, ease);
-  camera.lookAt(lookAt.x, lookAt.y + LOOK_LIFT, lookAt.z);
 
   player.rig.update();
   renderer.render(scene, camera);
