@@ -8,12 +8,15 @@
   </head>
   <body>
     <canvas id="game" aria-label="Data Swamp game canvas"></canvas>
+    <div id="crosshair" hidden aria-hidden="true"></div>
+    <p id="look-hint" hidden>Click to capture mouse &middot; Esc to release<br>Or hold right mouse to look &middot; F to throw</p>
     <div id="hurt" aria-hidden="true"></div>
 
     <div id="touch" aria-hidden="true">
       <div class="stick" id="stick-move"><span class="knob"></span><span class="stick-label">Move</span></div>
-      <div class="stick" id="stick-aim"><span class="knob"></span><span class="stick-label">Aim + throw</span></div>
+      <div class="stick" id="stick-aim"><span class="stick-label">Swipe to look</span></div>
       <button type="button" class="tap" id="tap-jump">Jump</button>
+      <button type="button" class="tap" id="tap-fire">Throw</button>
     </div>
 
     <header class="chrome top">
@@ -28,20 +31,20 @@
         the older the data the safer it is to carry, the newer it is the harder it hits.
       </p>
       <ul class="brief">
-        <li><span class="by-key"><kbd>WASD</kbd> run · mouse to aim · click to throw · <kbd>Space</kbd> to jump</span>
-            <span class="by-tap">Left stick moves · drag the right stick to aim and throw</span></li>
-        <li><span class="by-key"><kbd>1</kbd>–<kbd>7</kbd> or scroll to swap storage · <kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> aim and throw</span>
-            <span class="by-tap">Tap Jump to hop · tap a chip to swap storage</span></li>
+        <li><span class="by-key"><kbd>WASD</kbd> run · mouse to look · click to throw · <kbd>Space</kbd> to jump</span>
+            <span class="by-tap">Left stick moves · swipe the right side to look</span></li>
+        <li><span class="by-key"><kbd>1</kbd>–<kbd>7</kbd> or scroll to swap storage · <kbd>IJKL</kbd> look · <kbd>F</kbd> throw</span>
+            <span class="by-tap">Hold Throw and drag to aim · Jump to hop · tap a chip to swap storage</span></li>
         <li>Jumping clears shots fired along the ground. Not the ones dropped from above.</li>
       </ul>
-      <p class="hint"><span class="by-key">Press any key to begin</span><span class="by-tap">Tap to begin</span></p>
+      <p class="hint"><span class="by-key">Click to begin and capture mouse · Esc to pause</span><span class="by-tap">Tap to begin</span></p>
     </div>
 
     <p id="banner" role="status"></p>
 
     <div id="pause" role="status">
       <p class="verdict">Paused</p>
-      <p class="hint"><span class="by-key"><kbd>P</kbd> or any key to resume</span><span class="by-tap">Tap to resume</span></p>
+      <p class="hint"><span class="by-key">Click to resume and capture mouse · any key for free cursor</span><span class="by-tap">Tap to resume</span></p>
     </div>
 
     <div id="over" role="status">
@@ -54,11 +57,11 @@
     <footer class="chrome bottom">
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</li>
-        <li><span class="mouse">Mouse</span> aim</li>
+        <li><span class="mouse">Mouse</span> look</li>
         <li><span class="mouse">Click</span> throw</li>
         <li><kbd>Space</kbd> jump <span class="note">— clears ground shots</span></li>
         <li><kbd>1</kbd>–<kbd>7</kbd> <span class="mouse">Scroll</span> swap</li>
-        <li><kbd>P</kbd> pause</li>
+        <li><kbd>Esc</kbd> pause</li>
       </ul>
 
       <ol class="tiers" id="tiers" aria-label="Storage tiers"></ol>

@@ -1,129 +1,85 @@
 import * as THREE from 'three';
 
-// Movement and aim are independent screen-space inputs. The fixed camera maps
-// them into the world; releasing an aim source never replaces it with movement.
-export function createInput(canvas) {
+export function createInput(canvas, { enabled = () => true, locked = () => document.pointerLockElement === canvas } = {}) {
   const held = new Set();
   const input = {
-    move: new THREE.Vector2(),
-    worldMove: new THREE.Vector2(),
-    pointer: new THREE.Vector2(),
-    aim: new THREE.Vector2(1, 0),
-    aimMode: 'direction',
-    aimActive: false,
-    jumpQueued: false,
-    firing: false,
-    tierQueued: 0,
-    cycleQueued: 0,
+    move: new THREE.Vector2(), worldMove: new THREE.Vector2(),
+    lookDelta: new THREE.Vector2(), lookRate: new THREE.Vector2(),
+    jumpQueued: false, firing: false, tierQueued: 0, cycleQueued: 0,
     stick: { move: new THREE.Vector2(), aim: new THREE.Vector2(), firing: false },
   };
-  const CODES = {
+  const codes = {
     KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down',
     KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
-    KeyI: 'aimUp', KeyK: 'aimDown', KeyJ: 'aimLeft', KeyL: 'aimRight',
+    KeyI: 'lookUp', KeyK: 'lookDown', KeyJ: 'lookLeft', KeyL: 'lookRight',
+    KeyF: 'fire',
   };
   let mouseFiring = false;
-
+  let dragging = false;
+  input.lock = () => {
+    if (!enabled() || locked() || !canvas.requestPointerLock) return;
+    try { canvas.requestPointerLock()?.catch(() => {}); } catch { /* Drag-to-look remains available. */ }
+  };
   addEventListener('keydown', event => {
+    if (!enabled()) return;
     if (event.code === 'Space') {
       event.preventDefault();
       if (!event.repeat) input.jumpQueued = true;
-      return;
+    } else if (/^Digit[1-7]$/.test(event.code)) {
+      input.tierQueued = Number(event.code.slice(5));
+    } else if (codes[event.code]) {
+      event.preventDefault();
+      held.add(codes[event.code]);
     }
-    if (event.code.startsWith('Digit')) {
-      const tier = Number(event.code.slice(5));
-      if (tier >= 1 && tier <= 7) {
-        event.preventDefault();
-        input.tierQueued = tier;
-      }
-      return;
-    }
-    const action = CODES[event.code];
-    if (!action) return;
-    event.preventDefault();
-    held.add(action);
   });
-  addEventListener('keyup', event => {
-    const action = CODES[event.code];
-    if (action) held.delete(action);
-  });
-
-  function point(event) {
-    input.aimMode = 'pointer';
-    const bounds = canvas.getBoundingClientRect();
-    input.pointer.set(
-      ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-      -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-    );
-  }
-  canvas.addEventListener('pointermove', event => {
-    if (event.pointerType === 'mouse') point(event);
-  });
+  addEventListener('keyup', event => held.delete(codes[event.code]));
   canvas.addEventListener('pointerdown', event => {
-    if (event.pointerType === 'mouse' && event.button === 0) {
-      point(event);
-      mouseFiring = true;
+    if (event.pointerType !== 'mouse' || !enabled()) return;
+    if (event.button === 0) {
+      // Capturing the mouse never also throws a shot.
+      if (locked()) mouseFiring = true;
+      else input.lock();
     }
+    if (event.button === 2) dragging = true;
+  });
+  canvas.addEventListener('contextmenu', event => event.preventDefault());
+  addEventListener('mousemove', event => {
+    if (!enabled() || (!locked() && !dragging)) return;
+    input.lookDelta.x += event.movementX * .0024;
+    input.lookDelta.y -= event.movementY * .0024;
   });
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, event => {
-    if (!event.pointerType || event.pointerType === 'mouse') mouseFiring = false;
+    if (event.pointerType && event.pointerType !== 'mouse') return;
+    if (event.button === 0 || type === 'pointercancel') mouseFiring = false;
+    if (event.button === 2 || type === 'pointercancel') dragging = false;
   });
   canvas.addEventListener('wheel', event => {
+    if (!enabled()) return;
     event.preventDefault();
     input.cycleQueued += Math.sign(event.deltaY);
   }, { passive: false });
-
-  const keyAim = new THREE.Vector2();
   input.sample = () => {
-    input.move.set(
-      (held.has('right') ? 1 : 0) - (held.has('left') ? 1 : 0),
-      (held.has('up') ? 1 : 0) - (held.has('down') ? 1 : 0),
-    );
-    if (input.stick.move.lengthSq() > 0) input.move.copy(input.stick.move);
+    input.move.set(Number(held.has('right')) - Number(held.has('left')),
+      Number(held.has('up')) - Number(held.has('down')));
+    if (input.stick.move.lengthSq()) input.move.copy(input.stick.move);
     if (input.move.lengthSq() > 1) input.move.normalize();
-    keyAim.set(
-      (held.has('aimRight') ? 1 : 0) - (held.has('aimLeft') ? 1 : 0),
-      (held.has('aimUp') ? 1 : 0) - (held.has('aimDown') ? 1 : 0),
-    );
-    const touchAiming = input.stick.aim.lengthSq() > 0;
-    const keyAiming = keyAim.lengthSq() > 0;
-    input.aimActive = touchAiming || keyAiming;
-    if (input.aimActive) {
-      input.aimMode = 'direction';
-      input.aim.copy(touchAiming ? input.stick.aim : keyAim).normalize();
-    }
-    input.firing = mouseFiring || (touchAiming && input.stick.firing) || keyAiming;
+    input.lookRate.set(Number(held.has('lookRight')) - Number(held.has('lookLeft')),
+      Number(held.has('lookUp')) - Number(held.has('lookDown')));
+    input.firing = mouseFiring || input.stick.firing || held.has('fire');
     return input;
   };
-
-  // Clear both held and queued actions on pause/focus loss; keep the aim itself.
   input.reset = () => {
     held.clear();
-    mouseFiring = false;
-    input.move.set(0, 0);
-    input.worldMove.set(0, 0);
-    input.stick.move.set(0, 0);
-    input.stick.aim.set(0, 0);
+    mouseFiring = dragging = input.firing = input.jumpQueued = false;
+    input.move.set(0, 0); input.worldMove.set(0, 0);
+    input.lookDelta.set(0, 0); input.lookRate.set(0, 0);
+    input.stick.move.set(0, 0); input.stick.aim.set(0, 0);
     input.stick.firing = false;
-    input.firing = input.aimActive = input.jumpQueued = false;
     input.tierQueued = input.cycleQueued = 0;
   };
   addEventListener('blur', input.reset);
-
-  input.takeJump = () => {
-    const queued = input.jumpQueued;
-    input.jumpQueued = false;
-    return queued;
-  };
-  input.takeTier = () => {
-    const queued = input.tierQueued;
-    input.tierQueued = 0;
-    return queued;
-  };
-  input.takeCycle = () => {
-    const queued = input.cycleQueued;
-    input.cycleQueued = 0;
-    return queued;
-  };
+  for (const [name, key] of [['Jump', 'jumpQueued'], ['Tier', 'tierQueued'], ['Cycle', 'cycleQueued']]) {
+    input[`take${name}`] = () => { const value = input[key]; input[key] = name === 'Jump' ? false : 0; return value; };
+  }
   return input;
 }

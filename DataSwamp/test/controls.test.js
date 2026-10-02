@@ -2,126 +2,83 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createInput } from '../src/game/input.js';
-import { createArenaCamera, screenToWorld } from '../src/game/camera.js';
+import { createShoulderCamera } from '../src/game/camera.js';
 
 function inputHarness(t) {
-  const window = new EventTarget();
-  const canvas = new EventTarget();
-  canvas.getBoundingClientRect = () => ({ left: 10, top: 20, width: 800, height: 600 });
+  const window = new EventTarget(), canvas = new EventTarget();
   const previous = globalThis.addEventListener;
   globalThis.addEventListener = window.addEventListener.bind(window);
-  t.after(() => {
-    if (previous) globalThis.addEventListener = previous;
-    else delete globalThis.addEventListener;
-  });
-  const input = createInput(canvas);
-  const send = (type, properties, target = window) => target.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), properties));
-  return { input, canvas, send };
+  t.after(() => { if (previous) globalThis.addEventListener = previous; else delete globalThis.addEventListener; });
+  let locked = false;
+  let enabled = true;
+  canvas.requestPointerLock = () => { locked = true; return Promise.resolve(); };
+  const input = createInput(canvas, { enabled: () => enabled, locked: () => locked });
+  const send = (type, properties = {}, target = window) => target.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), properties));
+  return { input, canvas, send, disable: () => { enabled = false; } };
 }
 
-test('retreating never changes aim, and releasing aim stops firing without turning', t => {
-  const { input } = inputHarness(t);
-  input.stick.move.set(-1, 0);
-  input.stick.aim.set(1, 0);
-  input.stick.firing = true;
-  input.sample();
-  assert.deepEqual(input.move.toArray(), [-1, 0]);
-  assert.deepEqual(input.aim.toArray(), [1, 0]);
-  assert.equal(input.firing, true);
-  input.stick.aim.set(0, 0);
-  input.stick.firing = false;
-  input.stick.move.set(0, -1);
-  input.sample();
-  assert.equal(input.firing, false);
-  assert.equal(input.aimActive, false);
-  assert.deepEqual(input.aim.toArray(), [1, 0]);
-  input.stick.move.set(0, 0);
-  input.sample();
-  assert.equal(input.move.lengthSq(), 0);
-  assert.deepEqual(input.aim.toArray(), [1, 0]);
-});
-
-test('keyboard movement and keyboard aiming are independent, with bounded diagonal speed', t => {
-  const { input, send } = inputHarness(t);
-  send('keydown', { code: 'KeyA' });
-  send('keydown', { code: 'KeyS' });
-  send('keydown', { code: 'KeyI' });
-  input.sample();
-  assert.ok(Math.abs(input.move.length() - 1) < 1e-8);
-  assert.deepEqual(input.aim.toArray(), [0, 1]);
-  assert.equal(input.firing, true);
-  send('keyup', { code: 'KeyI' });
-  input.sample();
-  assert.equal(input.firing, false);
-  assert.deepEqual(input.aim.toArray(), [0, 1]);
-});
-
-test('mouse clicks acquire their own aim point and only the primary button fires', t => {
+test('capturing the mouse does not fire; subsequent clicks fire and relative mouse motion looks', t => {
   const { input, canvas, send } = inputHarness(t);
-  send('pointerdown', { pointerType: 'mouse', button: 2, clientX: 210, clientY: 170 }, canvas);
+  send('pointerdown', { pointerType: 'mouse', button: 0 }, canvas);
   assert.equal(input.sample().firing, false);
-  send('pointerdown', { pointerType: 'mouse', button: 0, clientX: 210, clientY: 170 }, canvas);
+  send('mousemove', { movementX: 20, movementY: -10 });
+  assert.ok(input.lookDelta.x > 0 && input.lookDelta.y > 0);
+  send('pointerdown', { pointerType: 'mouse', button: 0 }, canvas);
   assert.equal(input.sample().firing, true);
-  assert.equal(input.aimMode, 'pointer');
-  assert.deepEqual(input.pointer.toArray(), [-.5, .5]);
-  send('pointercancel', { pointerType: 'mouse' });
+  send('pointerup', { pointerType: 'mouse', button: 0 });
   assert.equal(input.sample().firing, false);
 });
 
-test('focus loss clears held movement, fire, and queued actions', t => {
+test('movement, look, and fire stay independent, including touch fire while stationary', t => {
   const { input, send } = inputHarness(t);
-  send('keydown', { code: 'KeyW' });
-  send('keydown', { code: 'KeyL' });
-  send('keydown', { code: 'Space' });
-  send('keydown', { code: 'Digit2' });
-  input.stick.move.set(0, 1);
-  input.stick.aim.set(-1, 0);
-  input.stick.firing = true;
-  input.sample();
-  send('blur', {});
-  input.sample();
-  assert.equal(input.move.lengthSq(), 0);
-  assert.equal(input.stick.aim.lengthSq(), 0);
+  send('keydown', { code: 'KeyA' }); send('keydown', { code: 'KeyS' });
+  send('keydown', { code: 'KeyL' }); input.sample();
+  assert.ok(Math.abs(input.move.length() - 1) < 1e-8);
+  assert.deepEqual(input.lookRate.toArray(), [1, 0]);
   assert.equal(input.firing, false);
-  assert.equal(input.takeJump(), false);
-  assert.equal(input.takeTier(), 0);
+  input.stick.firing = true;
+  send('keyup', { code: 'KeyL' }); input.sample();
+  assert.equal(input.lookRate.lengthSq(), 0);
+  assert.equal(input.firing, true);
 });
 
-test('jump key repeat does not queue another jump while held', t => {
+test('focus loss clears held and queued controls, and paused input is ignored', t => {
+  const { input, send, disable } = inputHarness(t);
+  send('keydown', { code: 'KeyW' }); send('keydown', { code: 'KeyF' });
+  send('keydown', { code: 'Space' }); send('keydown', { code: 'Digit2' });
+  input.stick.firing = true; input.lookDelta.set(1, 1);
+  send('blur'); input.sample();
+  assert.equal(input.move.lengthSq(), 0); assert.equal(input.lookDelta.lengthSq(), 0);
+  assert.equal(input.firing, false); assert.equal(input.takeJump(), false); assert.equal(input.takeTier(), 0);
+  disable(); send('keydown', { code: 'KeyW' });
+  assert.equal(input.sample().move.lengthSq(), 0);
+});
+
+test('jump key repeat does not queue another jump', t => {
   const { input, send } = inputHarness(t);
-  send('keydown', { code: 'Space', repeat: false });
-  assert.equal(input.takeJump(), true);
-  send('keydown', { code: 'Space', repeat: true });
-  assert.equal(input.takeJump(), false);
+  send('keydown', { code: 'Space', repeat: false }); assert.equal(input.takeJump(), true);
+  send('keydown', { code: 'Space', repeat: true }); assert.equal(input.takeJump(), false);
 });
 
-test('camera bearing and height stay fixed through strafing, facing changes, and jumps', () => {
-  const camera = new THREE.PerspectiveCamera();
-  const rig = createArenaCamera(camera);
-  rig.resize(1440, 1000);
-  rig.reset({ x: 0, y: 0, z: 0 });
-  const facing = camera.quaternion.clone();
-  const height = camera.position.y;
-  for (let i = 0; i < 600; i++) {
-    rig.update(1 / 60, { x: i / 60, y: Math.abs(Math.sin(i / 20)) * 3, z: -i / 120, rotation: { y: i } });
-    assert.ok(1 - Math.abs(camera.quaternion.dot(facing)) < 1e-10);
-    assert.equal(camera.position.y, height);
-  }
-  assert.ok(camera.position.x > 9);
+test('camera yaw defines strafing without movement feedback, and pitch never changes movement speed', () => {
+  const camera = new THREE.PerspectiveCamera(), rig = createShoulderCamera(camera);
+  rig.reset(new THREE.Vector3());
+  const direction = rig.moveToWorld(0, 1, new THREE.Vector2());
+  assert.ok(direction.distanceTo(new THREE.Vector2(1, 0)) < 1e-8);
+  rig.look(Math.PI / 2, 100);
+  rig.moveToWorld(.3, .4, direction);
+  assert.ok(Math.abs(direction.length() - .5) < 1e-8);
+  rig.update(.1, new THREE.Vector3()); const rotation = camera.quaternion.clone();
+  for (let i = 0; i < 30; i++) rig.update(1 / 60, new THREE.Vector3(i, i % 3, i));
+  assert.ok(camera.quaternion.angleTo(rotation) < 1e-6);
 });
 
-test('portrait framing preserves combat width, and diagonals retain analog strength', () => {
-  const camera = new THREE.PerspectiveCamera();
-  const rig = createArenaCamera(camera);
-  for (const [width, height] of [[1440, 1000], [390, 844], [844, 390], [320, 900]]) {
-    rig.resize(width, height);
-    rig.reset({ x: 0, y: 5, z: 0 });
-    const edge = new THREE.Vector3(8.5, 1, 0).project(camera);
-    assert.ok(edge.x <= 1.000001 && edge.x > 0);
-    assert.ok(camera.fov <= 75);
-  }
-  const world = screenToWorld(.3, .4, new THREE.Vector2());
-  assert.ok(Math.abs(world.length() - .5) < 1e-8);
-  assert.ok(world.x > 0 && world.y < 0);
-  assert.equal(screenToWorld(0, 0, world).lengthSq(), 0);
+test('camera retracts before cover and widens portrait framing', () => {
+  const camera = new THREE.PerspectiveCamera(), rig = createShoulderCamera(camera);
+  rig.resize(1440, 1000); rig.reset(new THREE.Vector3());
+  const anchor = new THREE.Vector3(0, 2.8, 0);
+  rig.update(.016, new THREE.Vector3(), { obstacles: [{ x: -3, z: .7, radius: .8, height: 5 }] });
+  assert.ok(camera.position.distanceTo(anchor) < 2.5);
+  const landscape = camera.fov;
+  rig.resize(390, 844); assert.ok(camera.fov > landscape);
 });

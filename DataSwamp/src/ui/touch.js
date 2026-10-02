@@ -1,98 +1,80 @@
-// Floating twin sticks: left moves, right aims and fires outside its dead zone.
-// Each pointer keeps its original role even if the thumb crosses the screen.
+// Left thumb moves; right-side swipes look. Hold Throw and drag it to aim while firing.
 const DEAD = 8;
-
 export function createTouch(input, root, { surface, enabled = () => true }) {
-  const sticks = {
-    move: { el: root.querySelector('#stick-move'), pointer: null, target: input.stick.move },
-    aim: { el: root.querySelector('#stick-aim'), pointer: null, target: input.stick.aim },
-  };
-  const jumpPad = root.querySelector('#tap-jump');
-  for (const stick of Object.values(sticks)) stick.knob = stick.el.querySelector('.knob');
+  const move = root.querySelector('#stick-move');
+  const knob = move.querySelector('.knob');
+  const look = root.querySelector('#stick-aim');
+  const jump = root.querySelector('#tap-jump');
+  const fire = root.querySelector('#tap-fire');
+  const pointers = new Map();
   let shown = false;
-
-  function release(stick) {
-    const pointer = stick.pointer;
-    stick.pointer = null;
-    stick.origin = null;
-    stick.target.set(0, 0);
-    stick.el.classList.remove('live', 'firing');
-    stick.el.style.transform = '';
-    stick.knob.style.transform = '';
-    if (stick === sticks.aim) input.stick.firing = false;
-    if (pointer !== null && surface.hasPointerCapture(pointer)) surface.releasePointerCapture(pointer);
-  }
-  function reset() {
-    for (const stick of Object.values(sticks)) release(stick);
-    jumpPad.classList.remove('held');
-  }
   function show(on) {
     if (shown === on) return;
     shown = on;
     root.classList.toggle('on', on);
     document.body.classList.toggle('touching', on);
-    if (on) input.aimMode = 'direction';
-    else reset();
+    if (!on) reset();
   }
-  function grab(stick, event) {
-    // Clear the return animation before measuring the parked position.
-    stick.el.style.transform = '';
-    stick.el.classList.add('live');
-    const box = stick.el.getBoundingClientRect();
-    stick.radius = Math.max(DEAD + 1, box.width / 2);
-    stick.pointer = event.pointerId;
-    stick.origin = { x: event.clientX, y: event.clientY };
-    stick.el.style.transform = `translate(${event.clientX - box.left - box.width / 2}px, ${event.clientY - box.top - box.height / 2}px)`;
-    stick.knob.style.transform = '';
-    surface.setPointerCapture(event.pointerId);
-  }
-  function drag(stick, event) {
-    const dx = event.clientX - stick.origin.x;
-    const dy = event.clientY - stick.origin.y;
-    const distance = Math.hypot(dx, dy);
-    const clamped = Math.min(distance, stick.radius);
-    const strength = Math.max(0, (clamped - DEAD) / (stick.radius - DEAD));
-    const nx = distance ? dx / distance : 0;
-    const ny = distance ? dy / distance : 0;
-    stick.knob.style.transform = `translate(${nx * clamped}px, ${ny * clamped}px)`;
-    stick.target.set(nx * strength, -ny * strength);
-    if (stick === sticks.aim) {
-      input.stick.firing = strength > 0;
-      stick.el.classList.toggle('firing', strength > 0);
+  function release(id) {
+    const pointer = pointers.get(id);
+    if (!pointer) return;
+    pointers.delete(id);
+    if (pointer.role === 'move') {
+      input.stick.move.set(0, 0);
+      move.classList.remove('live');
+      move.style.transform = knob.style.transform = '';
     }
+    if (pointer.role === 'fire') { input.stick.firing = false; fire.classList.remove('held'); }
+    if (pointer.role === 'look') look.classList.remove('live');
+    if (pointer.role === 'jump') jump.classList.remove('held');
+    if (pointer.owner.hasPointerCapture(id)) pointer.owner.releasePointerCapture(id);
   }
-
-  addEventListener('pointerdown', event => {
-    if (event.pointerType === 'mouse') { show(false); return; }
-    if (event.target !== surface && !root.contains(event.target)) return;
-    show(true);
-    if (!enabled()) return;
-    event.preventDefault();
-    input.aimMode = 'direction';
-    const stick = event.clientX < innerWidth / 2 ? sticks.move : sticks.aim;
-    if (stick.pointer !== null) return;
-    grab(stick, event);
-  });
-  addEventListener('pointermove', event => {
-    for (const stick of Object.values(sticks)) {
-      if (stick.pointer !== event.pointerId) continue;
-      if (!enabled()) { reset(); return; }
-      event.preventDefault();
-      drag(stick, event);
-    }
-  });
-  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) addEventListener(type, event => {
-    for (const stick of Object.values(sticks)) if (stick.pointer === event.pointerId) release(stick);
-    jumpPad.classList.remove('held');
-  });
-  jumpPad.addEventListener('pointerdown', event => {
+  function reset() { for (const id of [...pointers.keys()]) release(id); }
+  function grab(event, role, owner) {
     event.preventDefault();
     event.stopPropagation();
     show(true);
-    if (!enabled()) return;
-    input.jumpQueued = true;
-    jumpPad.classList.add('held');
+    if (!enabled() || [...pointers.values()].some(p => p.role === role)) return;
+    const pointer = { role, owner, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY };
+    pointers.set(event.pointerId, pointer);
+    owner.setPointerCapture(event.pointerId);
+    if (role === 'move') {
+      move.style.transform = '';
+      const box = move.getBoundingClientRect();
+      pointer.radius = box.width / 2;
+      move.style.transform = `translate(${pointer.x - box.left - box.width / 2}px, ${pointer.y - box.top - box.height / 2}px)`;
+      move.classList.add('live');
+    } else if (role === 'look') look.classList.add('live');
+    else if (role === 'fire') { input.stick.firing = true; fire.classList.add('held'); }
+    else { input.jumpQueued = true; jump.classList.add('held'); }
+  }
+  addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse') { show(false); return; }
+    if (event.target !== surface) return;
+    grab(event, event.clientX < innerWidth / 2 ? 'move' : 'look', surface);
   });
+  fire.addEventListener('pointerdown', event => grab(event, 'fire', fire));
+  jump.addEventListener('pointerdown', event => grab(event, 'jump', jump));
+  addEventListener('pointermove', event => {
+    const pointer = pointers.get(event.pointerId);
+    if (!pointer) return;
+    if (!enabled()) { reset(); return; }
+    event.preventDefault();
+    if (pointer.role === 'move') {
+      const dx = event.clientX - pointer.x, dy = event.clientY - pointer.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const reach = Math.min(length, pointer.radius);
+      const strength = Math.max(0, (reach - DEAD) / (pointer.radius - DEAD));
+      input.stick.move.set(dx / length * strength, -dy / length * strength);
+      knob.style.transform = `translate(${dx / length * reach}px, ${dy / length * reach}px)`;
+    } else if (pointer.role === 'look' || pointer.role === 'fire') {
+      const sensitivity = 2.5 / Math.min(innerWidth, innerHeight);
+      input.lookDelta.x += (event.clientX - pointer.lastX) * sensitivity;
+      input.lookDelta.y -= (event.clientY - pointer.lastY) * sensitivity;
+    }
+    pointer.lastX = event.clientX; pointer.lastY = event.clientY;
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) addEventListener(type, event => release(event.pointerId));
   addEventListener('blur', reset);
   addEventListener('resize', reset);
   addEventListener('visibilitychange', () => { if (document.hidden) reset(); });

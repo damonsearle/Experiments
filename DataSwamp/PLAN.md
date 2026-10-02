@@ -95,35 +95,35 @@ Projectile colours reuse the Data Dash file-type palette so the two games share 
 
 ### 4.1 Camera and control
 
-**Fixed-orientation arena camera**, looking down at 50 degrees. It follows Jerry's
-horizontal position with a short, frame-rate-independent lag. Facing, aiming and
-jumping never rotate or lift the camera. Portrait screens widen the vertical field
-and pull back enough to keep at least 17 units of combat width visible at the focus.
+**Over-the-shoulder shooter camera.** Jerry stays visible to the left of a centre
+crosshair. Mouse or touch look controls yaw and pitch directly; movement strafes
+relative to that yaw. Body animation never drives the camera. The camera retracts
+at cover and widens its vertical field on portrait screens.
 
 | Input | Action |
 |---|---|
-| `WASD` / arrows | Move in screen directions |
-| Mouse | Aim independently of movement |
-| Left click | Shoot |
-| `IJKL` | Aim and shoot without a mouse |
+| `WASD` / arrows | Move and strafe relative to the view |
+| Mouse (captured) | Look |
+| Left click | Capture mouse, then hold to throw |
+| `IJKL` / right mouse drag | Look without mouse capture |
+| `F` | Throw without mouse capture |
 | `Space` | Jump |
-| `1`–`7` / scroll / tap a chip | Switch storage tier |
-| `P` | Pause |
+| `1`-`7` / scroll / tap a chip | Switch storage tier |
+| `Esc` / `P` | Pause and release mouse |
 | Left touch stick | Move |
-| Right touch stick | Aim and shoot while dragged outside the dead zone |
+| Right-side swipe | Look |
+| Throw pad | Hold to throw; drag to look while throwing |
 | Jump pad | Jump |
 
-Both touch sticks are visible and float to meet the thumb. Each pointer keeps its
-role until release, even across the middle of the screen. Releasing movement brakes
-quickly; releasing aim stops shooting and preserves the last world aim direction.
-Movement never substitutes for aiming, so Jerry can retreat while firing forwards.
-Pause and focus loss clear controls; cancelled pointers and resize release active touches.
+The crosshair resolves a world point; shots leave Jerry's shoulder toward it.
+An amber crosshair marks a target; red marks cover blocking the throw from Jerry's
+position even when the camera can see past it. Swept 3D collision checks prevent
+fast throws skipping small creatures and allow aiming above or below them.
+Enemy shots retain their ground-level lanes and jump-dodge rule.
 
-The old rotating chase camera is removed, including `Q`/`E` and `C`. It created a
-feedback loop: turning towards a screen-relative aim changed the camera bearing,
-which changed that aim again, even after the thumb had stopped moving. Twin sticks
-are predictable with a fixed bearing. Mouse picking uses the updated camera and
-player position for the current frame.
+Touch pointers keep their roles until release. Pause, focus loss, cancelled pointers,
+and resize release controls. Losing mouse capture pauses; clicking resumes capture.
+The previous fixed arena camera and the earlier body-driven chase camera are superseded.
 
 ### 4.2 Movement and collision
 
@@ -131,9 +131,9 @@ No physics engine. Everything resolves on the **XZ plane** with a separate `y` f
 
 - Entities are circles on XZ (`position`, `radius`). Obstacles are circles or AABBs.
 - Jump is the same integrator Data Dash already uses — `velocity -= gravity * dt`, clamp at ground.
-- **Projectiles fly at a fixed height** and only collide in 2D, *except* that a jumping Jerry above
-  a threshold height dodges ground-fired shots. That one rule makes jumping tactical instead of
-  decorative, and costs almost nothing to implement.
+- **Player projectiles fly in 3D** along the crosshair trajectory and stop at terrain or
+  body-height enemy volumes. Enemy projectiles retain their fixed-height XZ collision;
+  Jerry can jump over ground-fired shots once above the dodge threshold.
 - Pteranodon shots come from above and *cannot* be jumped — they punish standing still instead.
 
 ### 4.3 Enemy AI
@@ -178,11 +178,8 @@ A prehistoric swamp that is also, quietly, a data centre that lost.
   randomised scale and rotation.
 - **Ruins:** server racks half-sunk in the swamp, floating punch cards, cable vines, and a
   monolithic dead mainframe as the arena's centrepiece and hard cover.
-- **Atmosphere:** heavy fog, drifting spores, and the volcano as a warm directional rim only.
-  ~~glowing on the horizon~~ — **not possible with this camera.** At ~50° down, even the wider portrait field's
-  visible band stops several degrees *below* the horizontal, so the sky and the horizon are never on
-  screen at any distance. A mountain tall enough to see is a mountain above the top of the frame.
-  The light it throws is the part that survives, and it was the part doing the work anyway.
+- **Atmosphere:** heavy fog, drifting spores, and warm directional rim light.
+  The shoulder view exposes the dark swamp horizon; no volcano backdrop is modelled.
 - **Palette:** mossy greens and tannin browns, deliberately desaturated, so the file-type projectiles
   and the tier-coloured pickups pop as the only saturated things on screen.
 
@@ -298,14 +295,11 @@ starts popping shadows in and out at the edge of the play area.
 All five are now decided. Recorded here rather than deleted, because the reasoning is what stops
 them being reopened by accident later.
 
-1. **Camera — fixed orientation with ground tracking.** The previous chase camera
-   changed the meaning of held stick input as it rotated. The camera now translates
-   without yawing, follows the ground rather than jump height, and shows more combat
-   space in portrait. Manual rotation and recenter controls are removed.
-2. **Aiming — independent of movement on every device.** Mouse aiming and touch twin
-   sticks share the same fixed screen basis. The right stick or `IJKL` aims and fires;
-   releasing it keeps the last world-facing direction. Left-stick movement never
-   changes aim. See §4.1 for the current controls and the superseded feedback loop.
+1. **Camera - over the shoulder.** Direct look controls yaw and pitch. The camera
+   follows Jerry, retracts at cover, and keeps him visible without changing his model.
+2. **Aiming - centre crosshair.** Move and strafe relative to camera yaw; look and fire
+   are independent. Shots converge from the shoulder onto the crosshair's world point.
+   See section 4.1 for desktop and touch controls.
 3. **Art direction — grubby and organic.** The HUD extends the existing mud/bone/tannin/amber chrome:
    serif title, hairline rules, and saturation reserved for projectiles and pickups so they stay the
    only loud things on screen. Data Dash's neon-brutalist HUD is rejected — it would compete with the

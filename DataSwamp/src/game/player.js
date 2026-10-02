@@ -136,7 +136,7 @@ export function createPlayer(scene) {
     });
   };
 
-  player.shoot = (dt, input, projectiles) => {
+  player.shoot = (dt, input, projectiles, origin, direction) => {
     player.cooldown = Math.max(0, player.cooldown - dt);
     player.recoil = Math.max(0, player.recoil - dt * 6);
 
@@ -158,13 +158,8 @@ export function createPlayer(scene) {
 
     player.cooldown = weapon.cooldown;
     player.recoil = 1;
-    projectiles.spawn(
-      weapon,
-      group.position.x + facing.x * .95,
-      group.position.z + facing.z * .95,
-      facing.x,
-      facing.z,
-    );
+    projectiles.spawn(weapon, origin.x, origin.z, direction.x, direction.z,
+      'player', origin.y, direction.y);
     return true;
   };
 

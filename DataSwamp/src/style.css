@@ -544,3 +544,24 @@ body.touching .by-tap { display: inline; }
   .tier { padding: .3rem .5rem; min-width: 0; }
   .health-track { width: auto; flex: 1; }
 }
+
+/* Shoulder-view aiming stays at the centre while Jerry occupies the left side. */
+#crosshair {
+  position: fixed; left: 50%; top: 50%; z-index: 6; pointer-events: none;
+  width: 16px; height: 16px; transform: translate(-50%, -50%);
+  border: 1px solid #eee5c9; border-radius: 50%;
+  box-shadow: 0 0 3px #000, inset 0 0 3px #000;
+}
+#crosshair::after { content: ''; position: absolute; width: 3px; height: 3px; background: #eee5c9; left: 6px; top: 6px; border-radius: 50%; }
+#crosshair.target { border-color: #edb84a; background: #edb84a44; }
+#crosshair.blocked { border-color: #e16c52; background: #e16c5244; }
+#look-hint { position: fixed; top: 56%; left: 50%; transform: translateX(-50%); text-align: center; font-size: .7rem; color: var(--bone); z-index: 4; pointer-events: none; text-shadow: 0 1px 3px #000; }
+#stick-aim { border: 0; background: none; }
+#stick-aim .stick-label { bottom: 7rem; }
+#tap-fire { bottom: 7.8rem; right: 2.6rem; width: 5rem; height: 5rem; border-color: var(--amber); }
+#tap-jump { right: 8rem; bottom: 8rem; }
+@media (max-height: 500px) {
+  #tap-fire { bottom: 4.5rem; width: 4rem; height: 4rem; }
+  #tap-jump { bottom: 4.8rem; right: 7rem; }
+  #stick-aim .stick-label { bottom: 5rem; }
+}

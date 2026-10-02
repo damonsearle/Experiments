@@ -1,52 +1,62 @@
 import * as THREE from 'three';
+import { traceWorld } from './collision.js';
 
-const PITCH = THREE.MathUtils.degToRad(50);
-const LOOK_HEIGHT = 1;
-const DISTANCE = 22;
-const MIN_HALF_WIDTH = 8.5;
-
-// Fixed bearing: screen right is +x and screen up is -z. Correct for the
-// ground's foreshortening so diagonal stick aim lines up with its reticle.
-export function screenToWorld(x, y, into) {
-  const strength = Math.min(1, Math.hypot(x, y));
-  return into.set(x, -y / Math.sin(PITCH)).normalize().multiplyScalar(strength);
-}
-
-export function createArenaCamera(camera) {
+// View rotation belongs to the player, never to Jerry's animated body heading.
+export function createShoulderCamera(camera) {
   const anchor = new THREE.Vector3();
-  let distance = DISTANCE;
+  const forward = new THREE.Vector3();
+  const right = new THREE.Vector3();
+  const desired = new THREE.Vector3();
+  const ray = new THREE.Ray();
+  const contact = new THREE.Vector3();
+  let yaw = Math.PI / 2;
+  let pitch = -.14;
+  let boom = 5;
 
-  function place() {
-    camera.position.set(anchor.x, LOOK_HEIGHT + Math.sin(PITCH) * distance, anchor.z + Math.cos(PITCH) * distance);
-    camera.lookAt(anchor.x, LOOK_HEIGHT, anchor.z);
-    // Mouse picking happens after tracking, using this frame's actual view.
+  function look(dx, dy) {
+    yaw = THREE.MathUtils.euclideanModulo(yaw + dx, Math.PI * 2);
+    pitch = THREE.MathUtils.clamp(pitch + dy, -.9, .7);
+  }
+
+  function moveToWorld(x, y, into) {
+    return into.set(Math.cos(yaw) * x + Math.sin(yaw) * y,
+      Math.sin(yaw) * x - Math.cos(yaw) * y);
+  }
+
+  function update(dt, position, arena = { obstacles: [] }) {
+    // Match horizontal motion exactly; soften the jump without adding aim lag.
+    anchor.x = position.x;
+    anchor.z = position.z;
+    anchor.y = THREE.MathUtils.damp(anchor.y, position.y + 2.8, 18, dt);
+    forward.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+    right.set(Math.cos(yaw), 0, Math.sin(yaw));
+    const shoulder = camera.aspect < .8 ? .85 : 1.25;
+    desired.copy(anchor).addScaledVector(forward, -5).addScaledVector(right, shoulder);
+    ray.origin.copy(anchor);
+    ray.direction.copy(desired).sub(anchor).normalize();
+    const length = desired.distanceTo(anchor);
+    const blocked = traceWorld(ray, arena, [], length, contact, .3);
+    const safe = blocked ? Math.max(.05, anchor.distanceTo(contact) - .08) : length;
+    // Retract immediately at cover; ease back out after clearing it.
+    boom = safe < boom ? safe : THREE.MathUtils.damp(boom, safe, 8, dt);
+    camera.position.copy(anchor).addScaledVector(ray.direction, boom);
+    camera.lookAt(desired.copy(camera.position).add(forward));
     camera.updateMatrixWorld();
+  }
+
+  function reset(position) {
+    yaw = Math.PI / 2;
+    pitch = -.14;
+    anchor.set(position.x, position.y + 2.8, position.z);
+    boom = 5;
+    update(1, position);
   }
 
   function resize(width, height) {
     camera.aspect = width / Math.max(height, 1);
-    // Open the vertical field on portrait screens before moving farther away.
-    // This preserves combat width without pushing Jerry deep into the fog.
-    camera.fov = Math.min(75, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(Math.PI / 8) / Math.min(1, camera.aspect))));
-    const halfFov = THREE.MathUtils.degToRad(camera.fov / 2);
-    distance = Math.max(DISTANCE, MIN_HALF_WIDTH / (Math.tan(halfFov) * camera.aspect));
+    camera.fov = camera.aspect < .8 ? 82 : 65;
     camera.updateProjectionMatrix();
-    place();
   }
 
-  function reset(position) {
-    anchor.set(position.x, 0, position.z);
-    place();
-  }
-
-  function update(dt, position) {
-    // Track one ground anchor, not two independently lagged camera/aim points.
-    // Jump height and character facing never change the view's orientation.
-    const follow = 1 - Math.exp(-12 * dt);
-    anchor.x += (position.x - anchor.x) * follow;
-    anchor.z += (position.z - anchor.z) * follow;
-    place();
-  }
-
-  return { resize, reset, update };
+  return { look, moveToWorld, update, reset, resize };
 }
