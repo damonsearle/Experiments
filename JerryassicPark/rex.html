@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tyrannosaurus · Jerryassic Park</title>
+<style>
+*{box-sizing:border-box}body{margin:0;color:#eee4d0;background:#142126;font-family:Arial,sans-serif;overflow:hidden}canvas{position:fixed;inset:0;display:block}header{position:fixed;left:6vw;top:6vh;pointer-events:none}small{font:10px monospace;letter-spacing:3px;color:#99bfb4}h1{font:clamp(30px,5vw,70px) Impact,sans-serif;margin:12px 0 6px;letter-spacing:1px}p{font:12px/1.8 monospace;color:#a3bab2;max-width:360px}nav{position:fixed;bottom:30px;left:6vw;right:6vw;display:flex;gap:8px;flex-wrap:wrap}button,a{background:#0b2429d9;border:1px solid #76988c70;color:#dce7d8;border-radius:3px;padding:12px 17px;text-decoration:none;font:10px monospace;cursor:pointer;letter-spacing:1px}button:hover,a:hover,button[aria-pressed=true]{background:#cee6b9;color:#102629}a{margin-left:auto}#status{position:fixed;right:6vw;top:6vh;font:10px monospace;color:#a4b5a5}.hint{position:fixed;bottom:90px;left:6vw;font:9px monospace;letter-spacing:1px;color:#86a398}@media(max-width:650px){header{top:4vh}nav{bottom:20px;gap:5px}button,a{padding:10px}p{font-size:10px;max-width:270px}#status{top:auto;bottom:120px}.hint{bottom:100px;font-size:8px}}
+</style></head>
+<body>
+<canvas id="viewer" aria-label="Interactive T. rex model preview"></canvas>
+<header><small>JERRYASSIC PARK / CREATURE STUDY 02</small><h1>TYRANNOSAURUS</h1><p>A heavier silhouette. A proper bite.<br>Built in Blender for Jerry’s very bad day.</p></header>
+<div id="status" role="status">LOADING MODEL…</div>
+<div class="hint">DRAG TO ORBIT · SCROLL TO ZOOM</div>
+<nav aria-label="Model preview controls"><button id="three-quarter">¾ VIEW</button><button id="side">SIDE VIEW</button><button id="walk" aria-pressed="false">WALK</button><button id="roar" aria-pressed="false">OPEN JAW</button><a href="./">BACK TO THE PARK →</a></nav>
+<script type="module" src="/src/rex-viewer.js"></script>
+</body></html>

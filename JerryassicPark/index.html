@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#071f24" />
+  <meta name="description" content="Jerry the backup engineer has three seconds to undo a very bad day. A dinosaur platforming adventure." />
+  <title>Jerryassic Park · Data Breach</title>
+</head>
+<body>
+  <canvas id="game" aria-label="Jerryassic Park, a side-scrolling dinosaur platformer"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <header id="hud" class="hidden">
+    <div class="player-panel glass"><img src="./art/jerry-portrait.png" alt="Jerry wearing his red glasses and propeller hat" /><div><span class="eyebrow">BACKUP ENGINEER</span><strong>JERRY <span id="hearts" aria-label="3 health">♥ ♥ ♥</span></strong><small><span class="amber">◆</span> <span id="bits">0000</span> <span class="muted">BITS RECOVERED</span></small></div></div>
+    <div class="mission glass"><span class="eyebrow">RECOVER THE PARK</span><strong><span class="cyan">◇</span> <span id="cores">0 / 5</span> <span class="muted">DATA CORES</span></strong><div id="core-dots" aria-hidden="true">◇ ◇ ◇ ◇ ◇</div></div>
+  </header>
+  <div class="utilities"><button id="sound" aria-label="Mute sound" title="Sound">SOUND ON</button><button id="pause" aria-label="Pause game" class="hidden">Ⅱ</button></div>
+  <div id="chapter" class="hidden"><span>SECTOR 01</span><b>THE OVERGROWN NETWORK</b></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="rewind" class="glass hidden"><div class="rewind-icon">↶</div><div><div class="rewind-label"><strong>REWIND</strong><span id="rewind-time">3.0s</span></div><div class="track"><div id="rewind-fill"></div></div><small>HOLD <kbd>R</kbd> <span class="muted">/ LT · UNDO THE LAST 3 SECONDS</span></small></div></div>
+  <div id="help" class="hidden"><span><kbd>A</kbd><kbd>D</kbd> MOVE</span><span><kbd>SPACE</kbd> JUMP / STOMP</span><span><kbd>ESC</kbd> PAUSE</span></div>
+  <div id="rewind-overlay" aria-hidden="true"><span>↶ RESTORING PREVIOUS VERSION</span></div>
+  <div id="encounter-frame" aria-hidden="true"></div>
+  <div id="encounter-caption" role="status" aria-live="polite"></div>
+  <main id="menu">
+    <section class="menu-card" id="intro">
+      <span class="eyebrow"><i class="status-dot"></i> A VERY BAD DAY FOR THE IT DEPARTMENT</span>
+      <h1>JERRYASSIC<br /><span>PARK</span><em>DATA BREACH</em></h1>
+      <p>The servers are down. The dinosaurs are out.<br />Fortunately, Jerry kept a backup. <em>Sort of.</em></p>
+      <div class="brief"><span>01 <b>Recover five data cores.</b></span><span>02 <b>Stay ahead of extinction.</b></span><span>03 <b>Made a mistake? Rewind it.</b></span></div>
+      <button id="start" class="primary" disabled>LOADING THE PARK… <span>→</span></button>
+      <div id="load-status" role="status">Unpacking Jerry and the dinosaurs</div>
+      <button id="preview-encounter" class="secondary" disabled>PREVIEW T. REX ENCOUNTER →</button>
+      <div class="intro-controls"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>SPACE</kbd> jump</span><span><kbd>R</kbd> rewind</span></div>
+      <small class="controller-note">CONTROLLER READY · LEFT STICK / A / LEFT TRIGGER</small>
+    </section>
+    <div class="field-note"><span>FIELD NOTE #001</span><b>Meet your backup plan.</b><p>Small arms. Big glasses.<br />Questionable disaster recovery skills.</p></div>
+    <footer><span>JERRYASSIC RESEARCH FACILITY</span><a href="./rex.html" style="color:inherit">MEET THE T. REX →</a></footer>
+  </main>
+  <section id="modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-card glass"><span class="eyebrow" id="modal-kicker">CONNECTION SUSPENDED</span><h2 id="modal-title">Taking a byte.</h2><p id="modal-copy">Even backup engineers need a break.</p><button id="resume" class="primary">BACK TO THE PARK →</button><button id="restart" class="secondary">START A NEW RUN</button><small>MOVE: A / D OR ARROWS · JUMP: SPACE · REWIND: R</small></div></section>
+  <nav id="touch" class="hidden" aria-label="Touch controls"><div><button data-control="left" aria-label="Move left">←</button><button data-control="right" aria-label="Move right">→</button></div><div><button data-control="rewind" aria-label="Rewind">↶</button><button data-control="jump" aria-label="Jump">↑</button></div></nav>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

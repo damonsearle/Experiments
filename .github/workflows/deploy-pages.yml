@@ -6,6 +6,7 @@ on:
     paths:
       - 'GrandTheftData/**'
       - 'DataSwamp/**'
+      - 'JerryassicPark/**'
       - 'shared/jerry/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
@@ -34,6 +35,7 @@ jobs:
           cache-dependency-path: |
             GrandTheftData/package-lock.json
             DataSwamp/package-lock.json
+            JerryassicPark/package-lock.json
 
       - name: Install Data Dash dependencies
         working-directory: GrandTheftData
@@ -51,6 +53,14 @@ jobs:
         working-directory: DataSwamp
         run: npm run build
 
+      - name: Install Jerryassic Park dependencies
+        working-directory: JerryassicPark
+        run: npm ci
+
+      - name: Test and build Jerryassic Park
+        working-directory: JerryassicPark
+        run: npm test && npm run build
+
       # Data Dash keeps the site root; Data Swamp is nested under /swamp/. Its Vite base is
       # './', so its asset URLs are relative and it does not care which subfolder it lands in.
       - name: Assemble site
@@ -59,6 +69,8 @@ jobs:
           cp -r GrandTheftData/dist/. site/
           mkdir -p site/swamp
           cp -r DataSwamp/dist/. site/swamp/
+          mkdir -p site/jerryassic
+          cp -r JerryassicPark/dist/. site/jerryassic/
           echo "--- site tree ---"
           find site -maxdepth 2 -not -path '*/assets/*' | sort
 
